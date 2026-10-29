@@ -40,11 +40,11 @@ SADIIN/
 
 | Papel | Responsável | Atribuições Principais |
 |---|---|---|
-| **Tech Lead** | *Definir titular do Squad 45* | Definição da arquitetura, revisão de Pull Requests na `main`, destravamento técnico e padronização do contrato `/api/v1`. |
-| **Front-end** | **Lia Costa** (`@LiaCost`) | Implementação das interfaces React 18 + TypeScript, fidelidade ao protótipo, integração com mapa Leaflet, acessibilidade e testes Vitest/MSW. |
-| **Back-end** | *Definir titular do Squad 45* | Rotas FastAPI, persistência e cache PostgreSQL 15, conectores assíncronos DATASUS (CNES/e-SUS) e cliente OAuth2 HL7 FHIR R4 (RNDS). |
-| **Responsável por IA** | *Definir titular do Squad 45* | Integração com APIs de LLM (Gemini / Anthropic), pipeline RAG, calibração do limiar de 85% de confiança e manutenção de `/docs/prompts/`. |
-| **QA + Documentação** | *Definir titular do Squad 45* | Testes automatizados (`pytest` e `Vitest`), atualização do `README.md`, registro de [`PROMPTS_FALHOS.md`](./docs/prompts/PROMPTS_FALHOS.md) e [`CUSTOS_IA.md`](./docs/CUSTOS_IA.md). |
+| **Tech Lead** | *Lia ou Yasmin* | Definição da arquitetura, revisão de Pull Requests na `main`, destravamento técnico e padronização do contrato `/api/v1`. |
+| **Front-end** | **Lia** | Implementação das interfaces React 18 + TypeScript, fidelidade ao protótipo, integração com mapa Leaflet, acessibilidade e testes Vitest/MSW. |
+| **Back-end** | *Lucas, Marina, Áquila e Bruno* | Rotas FastAPI, persistência e cache PostgreSQL 15, conectores assíncronos DATASUS (CNES/e-SUS) e cliente OAuth2 HL7 FHIR R4 (RNDS). |
+| **Responsável por IA** | *Yasmin* | Integração com APIs de LLM (Gemini / Anthropic), pipeline RAG, calibração do limiar de 85% de confiança e manutenção de `/docs/prompts/`. |
+| **QA + Documentação** | *Nícolas* | Testes automatizados (`pytest` e `Vitest`), atualização do `README.md`, registro de [`PROMPTS_FALHOS.md`](./docs/prompts/PROMPTS_FALHOS.md) e [`CUSTOS_IA.md`](./docs/CUSTOS_IA.md). |
 | **Ponto Focal com a Empresa** | *Definir titular do Squad 45* | Alinhamento contínuo com os *stakeholders* da BRchain e validação incremental das entregas. |
 
 ---
