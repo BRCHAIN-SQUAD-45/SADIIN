@@ -1,0 +1,68 @@
+# =============================================================================
+# Variáveis de ambiente e segredos (NUNCA versionar chaves reais)
+# =============================================================================
+.env
+.env.*
+!.env.example
+**/secrets/
+*.pem
+*.key
+
+# =============================================================================
+# Front-end (Node.js / Vite / React / TypeScript)
+# =============================================================================
+node_modules/
+dist/
+dist-ssr/
+build/
+coverage/
+*.tsbuildinfo
+.eslintcache
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+frontend/docs/prototype/
+
+# =============================================================================
+# Back-end (Python / FastAPI / pytest)
+# =============================================================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+.venv/
+env/
+ENV/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# =============================================================================
+# Banco de Dados Local / Volumes
+# =============================================================================
+*.db
+*.sqlite3
+postgres_data/
+
+# =============================================================================
+# IDEs e Sistema Operacional
+# =============================================================================
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.swp
+*.swo
+*~

@@ -1,0 +1,86 @@
+/* ==========================================================================
+ * Design tokens — BRchain Portal
+ * Extraídos do protótipo real (docs/prototype/prototype.css).
+ * Com --font-scale: 1 (padrão) cada tamanho é pixel a pixel idêntico ao protótipo.
+ * O botão "Acessibilidade" do gov-bar aplica [data-a11y="true"] no <html>,
+ * escalando fontes em 125% e elevando os contrastes para WCAG AA.
+ * ========================================================================== */
+
+:root {
+  --font-scale: 1;
+
+  /* Escala tipográfica exata do protótipo */
+  --fs-6: calc(6px * var(--font-scale));
+  --fs-7: calc(7px * var(--font-scale));
+  --fs-8: calc(8px * var(--font-scale));
+  --fs-9: calc(9px * var(--font-scale));
+  --fs-10: calc(10px * var(--font-scale));
+  --fs-11: calc(11px * var(--font-scale));
+  --fs-12: calc(12px * var(--font-scale));
+  --fs-13: calc(13px * var(--font-scale));
+  --fs-14: calc(14px * var(--font-scale));
+  --fs-15: calc(15px * var(--font-scale));
+  --fs-16: calc(16px * var(--font-scale));
+  --fs-17: calc(17px * var(--font-scale));
+  --fs-18: calc(18px * var(--font-scale));
+  --fs-19: calc(19px * var(--font-scale));
+  --fs-20: calc(20px * var(--font-scale));
+  --fs-21: calc(21px * var(--font-scale));
+  --fs-23: calc(23px * var(--font-scale));
+  --fs-25: calc(25px * var(--font-scale));
+  --fs-26: calc(26px * var(--font-scale));
+  --fs-27: calc(27px * var(--font-scale));
+  --fs-32: calc(32px * var(--font-scale));
+  --fs-38: calc(38px * var(--font-scale));
+  --fs-41: calc(41px * var(--font-scale));
+
+  /* Paleta */
+  --teal-900: #073e39;
+  --teal-800: #0b554d;
+  --teal-logo: #0c514a;
+  --teal-700: #0c5a52;
+  --primary: #087e70;
+  --primary-hover: #056c61;
+  --accent: #17a48d;
+  --mint-bg: #e8f5f1;
+  --mint-soft: #f1f7f5;
+  --sources-bg: #e9f5f2;
+  --border: #dfeae7;
+  --text-strong: #123e3a;
+  --text-muted: #718783;
+}
+
+/* Modo Acessibilidade (alto contraste + fonte 125%) */
+html[data-a11y='true'] {
+  --font-scale: 1.25;
+  --text-muted: #2d4c47;
+}
+
+html[data-a11y='true'] .gov-bar,
+html[data-a11y='true'] .site-footer {
+  color: #e6f4f1;
+}
+
+html[data-a11y='true'] .site-header nav a,
+html[data-a11y='true'] .hero-content > p,
+html[data-a11y='true'] .section-title p,
+html[data-a11y='true'] .quick-card p,
+html[data-a11y='true'] .nearby-copy > p,
+html[data-a11y='true'] .facility-top p,
+html[data-a11y='true'] .facility-meta,
+html[data-a11y='true'] .stat-card small,
+html[data-a11y='true'] .stat-card p,
+html[data-a11y='true'] .news-list p,
+html[data-a11y='true'] .sources p,
+html[data-a11y='true'] .source-logos small,
+html[data-a11y='true'] .directory-hero p,
+html[data-a11y='true'] .content-card-copy p {
+  color: #264641;
+}
+
+html[data-a11y='true'] .gov-bar button[aria-pressed='true'] {
+  color: #fff;
+  background: #0d6b5f;
+  padding: 3px 8px;
+  border-radius: 5px;
+}
