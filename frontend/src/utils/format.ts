@@ -93,3 +93,26 @@ export function buildTelHref(phone?: string): string {
   const digits = phone.replace(/\D/g, '');
   return digits ? `tel:+55${digits}` : '#';
 }
+
+/** Rótulo capitalizado de lotação da UBS (`"baixo"` -> `"Baixo"`, `"moderado"` -> `"Moderado"`). */
+export function formatMovementLabel(level: 'baixo' | 'moderado' | 'alto'): string {
+  const labels: Record<'baixo' | 'moderado' | 'alto', string> = {
+    baixo: 'Baixo',
+    moderado: 'Moderado',
+    alto: 'Alto',
+  };
+  return labels[level];
+}
+
+/** `"2025-05-28T08:42:00Z"` -> `"Hoje, às 08:42"` (formato exibido no contato da UBS no protótipo). */
+export function formatUnitUpdatedLabel(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  const hh = String(d.getUTCHours()).padStart(2, '0');
+  const mm = String(d.getUTCMinutes()).padStart(2, '0');
+  return `Hoje, às ${hh}:${mm}`;
+}
+
+/** Imagem SVG local neutra caso uma URL externa falhe (regra 3.1). */
+export const FALLBACK_CARD_IMAGE =
+  "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='800' height='450' viewBox='0 0 800 450'><rect width='800' height='450' fill='%23e5efec'/><circle cx='400' cy='225' r='44' fill='%23cfe3dd'/></svg>";

@@ -114,6 +114,7 @@ const PATHS: Record<IconName, ReactNode> = {
   close: <path d="m6 6 12 12M18 6 6 18" />,
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const isIconName = (v: string): v is IconName =>
   (ICON_NAMES as readonly string[]).includes(v);
 

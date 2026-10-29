@@ -107,9 +107,9 @@ describe('Fase 2 — Layout global + Home idênticos ao protótipo', () => {
   });
 
   it.each([
-    ['/medicamentos', /Medicamentos \(placeholder\)/],
-    ['/doencas', /Doenças e sintomas \(placeholder\)/],
-    ['/unidades/9990001', /CNES: 9990001/],
+    ['/medicamentos', /Consulte informações sobre indicações/],
+    ['/doencas', /Encontre informações confiáveis para reconhecer sintomas/],
+    ['/unidades/9990001', /UBS República/],
     ['/rota-inexistente', /Página não encontrada/],
   ])('%s renderiza a página correspondente', async (path, text) => {
     renderAt(path);
