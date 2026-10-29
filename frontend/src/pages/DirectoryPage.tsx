@@ -2,14 +2,8 @@ import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { Icon } from '../components/ui/Icon';
 import { EmptyState, ErrorState, ProvenanceTags, Skeleton } from '../components/ui/States';
-import {
-  useConditionCategories,
-  useConditions,
-} from '../features/conditions/useConditions';
-import {
-  useMedicationCategories,
-  useMedications,
-} from '../features/medications/useMedications';
+import { useConditionCategories, useConditions } from '../features/conditions/useConditions';
+import { useMedicationCategories, useMedications } from '../features/medications/useMedications';
 import { useGlobalSearch } from '../features/search/useGlobalSearch';
 import { useDebounce } from '../hooks/useDebounce';
 import { FALLBACK_CARD_IMAGE } from '../utils/format';
@@ -62,8 +56,7 @@ export function DirectoryPage({ kind }: { kind: 'medications' | 'conditions' }) 
   const aiFallback = effectiveQuery.length >= 2 ? aiSearchQuery.data?.fallback : null;
   const suggestedCategories =
     effectiveQuery.length >= 2 ? (aiSearchQuery.data?.suggested_categories ?? []) : [];
-  const matchedTerm =
-    effectiveQuery.length >= 2 ? aiSearchQuery.data?.matched_term : undefined;
+  const matchedTerm = effectiveQuery.length >= 2 ? aiSearchQuery.data?.matched_term : undefined;
 
   // Se o modelo de IA bloqueou recomendação prescritiva de medicamento (US-02.1) ou
   // detectou risco clínico/baixa confiança (US-03.1), não exibimos resultados prescritivos.
@@ -109,9 +102,7 @@ export function DirectoryPage({ kind }: { kind: 'medications' | 'conditions' }) 
                   : 'Busque uma doença, alergia ou sintoma...'
               }
               aria-label={
-                isMedications
-                  ? 'Buscar medicamento pelo nome'
-                  : 'Buscar doença, alergia ou sintoma'
+                isMedications ? 'Buscar medicamento pelo nome' : 'Buscar doença, alergia ou sintoma'
               }
             />
             <button type="submit">Pesquisar</button>
@@ -161,8 +152,7 @@ export function DirectoryPage({ kind }: { kind: 'medications' | 'conditions' }) 
 
         {matchedTerm && !aiFallback && (
           <div className="search-matched-term" role="status">
-            <Icon name="check" size={15} /> Termo interpretado como:{' '}
-            <strong>{matchedTerm}</strong>
+            <Icon name="check" size={15} /> Termo interpretado como: <strong>{matchedTerm}</strong>
           </div>
         )}
 

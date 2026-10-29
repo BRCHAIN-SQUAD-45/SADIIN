@@ -13,9 +13,8 @@ export function MedicationDetailPage() {
       <section className="units-top">
         <div className="section-width">
           <div className="unit-breadcrumb">
-            <Link to="/">Início</Link> <span>›</span>{' '}
-            <Link to="/medicamentos">Medicamentos</Link> <span>›</span>{' '}
-            <span>{med?.name ?? 'Detalhes'}</span>
+            <Link to="/">Início</Link> <span>›</span> <Link to="/medicamentos">Medicamentos</Link>{' '}
+            <span>›</span> <span>{med?.name ?? 'Detalhes'}</span>
           </div>
           <div className="units-heading">
             <div>

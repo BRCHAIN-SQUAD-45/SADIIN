@@ -34,7 +34,9 @@ describe('Fase 3 — Medicamentos, Doenças e Sintomas e Detalhes da UBS', () =>
     const user = userEvent.setup();
     renderAt('/medicamentos');
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Medicamentos' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Medicamentos' }),
+    ).toBeInTheDocument();
     expect(await screen.findByRole('heading', { level: 2, name: 'Dipirona' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 2, name: 'Amoxicilina' })).toBeInTheDocument();
     expect(screen.getByText('6 conteúdos disponíveis')).toBeInTheDocument();

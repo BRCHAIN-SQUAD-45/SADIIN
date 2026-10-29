@@ -13,9 +13,8 @@ export function ConditionDetailPage() {
       <section className="units-top">
         <div className="section-width">
           <div className="unit-breadcrumb">
-            <Link to="/">Início</Link> <span>›</span>{' '}
-            <Link to="/doencas">Doenças e sintomas</Link> <span>›</span>{' '}
-            <span>{cond?.popular_name ?? 'Detalhes'}</span>
+            <Link to="/">Início</Link> <span>›</span> <Link to="/doencas">Doenças e sintomas</Link>{' '}
+            <span>›</span> <span>{cond?.popular_name ?? 'Detalhes'}</span>
           </div>
           <div className="units-heading">
             <div>

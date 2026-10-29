@@ -275,7 +275,11 @@ function UnitDetailContent({
               </div>
             ) : (
               <>
-                <div className="flow-chart" role="list" aria-label="Atendimentos nos últimos 7 dias">
+                <div
+                  className="flow-chart"
+                  role="list"
+                  aria-label="Atendimentos nos últimos 7 dias"
+                >
                   {history.days.map((d) => {
                     const isHovered = hoveredDay === d.date;
                     return (
@@ -291,9 +295,7 @@ function UnitDetailContent({
                         onFocus={() => onHoverDay(d.date)}
                         onBlur={() => onHoverDay(null)}
                       >
-                        <span>
-                          {isHovered ? `${d.attendances} atend.` : d.attendances}
-                        </span>
+                        <span>{isHovered ? `${d.attendances} atend.` : d.attendances}</span>
                         <div>
                           <i style={{ height: `${Math.min(100, d.attendances)}%` }} />
                         </div>
@@ -331,7 +333,9 @@ function UnitDetailContent({
                 <small>HORÁRIO DE ATENDIMENTO</small>
               </span>
               <strong>
-                {unit ? `${unit.opening_hours.open} — ${unit.opening_hours.close}` : '07:00 — 19:00'}
+                {unit
+                  ? `${unit.opening_hours.open} — ${unit.opening_hours.close}`
+                  : '07:00 — 19:00'}
               </strong>
             </div>
             <div className="operation-row">
@@ -372,7 +376,11 @@ function UnitDetailContent({
             </button>
           </div>
 
-          <div className="service-filters" role="tablist" aria-label="Filtrar serviços por categoria">
+          <div
+            className="service-filters"
+            role="tablist"
+            aria-label="Filtrar serviços por categoria"
+          >
             {SERVICE_CATEGORIES.map((cat) => {
               const isActive = selectedServiceCategory === cat;
               return (

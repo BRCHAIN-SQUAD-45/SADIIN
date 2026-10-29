@@ -116,4 +116,3 @@ export function formatUnitUpdatedLabel(iso: string): string {
 /** Imagem SVG local neutra caso uma URL externa falhe (regra 3.1). */
 export const FALLBACK_CARD_IMAGE =
   "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='800' height='450' viewBox='0 0 800 450'><rect width='800' height='450' fill='%23e5efec'/><circle cx='400' cy='225' r='44' fill='%23cfe3dd'/></svg>";
-
