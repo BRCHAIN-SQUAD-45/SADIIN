@@ -43,11 +43,3 @@ O **SADIIN (BRchain Portal)** é um portal web de saúde pública que integra in
 - `npm run build` — gera a versão de produção
 
 ---
-
-## Equipe — Squad 45
-
-- **Tech Lead:** Lia / Yasmin
-- **Front-end:** Lia
-- **Back-end:** Lucas, Marina, Áquila e Bruno
-- **Responsável por IA:** Yasmin
-- **QA e Documentação:** Nícolas
