@@ -33,4 +33,13 @@ Este documento registra os casos em que prompts de desenvolvimento geraram probl
 
 ---
 
+### FE-F04 — Pinos Acessíveis do Mapa (`FE05 v1.0`): Conflito entre `onFocus` e `onClick` ao clicar no pino
+- **Data:** 29/10/2026
+- **Prompt Relacionado:** [`FE05-mappers-mapa-leaflet-contrato.md`](./FE05-mappers-mapa-leaflet-contrato.md)
+- **O que pedimos:** Tornar os pinos de UBS do mapa acessíveis por teclado (`tabIndex={0}`, `onFocus`, `onClick`) exibindo o tooltip com o nome da unidade.
+- **O que veio (Problema):** O handler `onClick={() => setActivePinCnes(isActive ? null : u.cnes)}` combinado com `onFocus={() => setActivePinCnes(u.cnes)}` fazia com que um clique de mouse primeiro disparasse `focus` (`isActive = true`) e em seguida `click` (`isActive = null`), fechando o tooltip imediatamente.
+- **O que mudamos (`FE05 v1.1`):** Ajustamos `onClick` para ativar diretamente `setActivePinCnes(u.cnes)`, mantendo a alternância apenas nas teclas `Enter`/`Espaço` e o fechamento no `onBlur`.
+
+---
+
 > **Back-end e IA:** As falhas de prompts das camadas de Back-end e IA serão registradas pelos respectivos responsáveis em suas branches.

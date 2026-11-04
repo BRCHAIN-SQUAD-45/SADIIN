@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { SearchType } from '../api/types';
+import { NearbyUnitsMap } from '../components/map/NearbyUnitsMap';
 import { Icon, isIconName } from '../components/ui/Icon';
 import { EmptyState, ErrorState, ProvenanceTags, Skeleton } from '../components/ui/States';
 import { useRegionalDashboard } from '../features/dashboard/useRegionalDashboard';
@@ -36,7 +37,6 @@ export function HomePage() {
   const [queryText, setQueryText] = useState('');
   const [submittedQuery, setSubmittedQuery] = useState('');
   const [feedbackBanner, setFeedbackBanner] = useState('');
-  const [activePinCnes, setActivePinCnes] = useState<string | null>(null);
 
   const { location, selectLocation } = useLocationSelection();
   const [placeInput, setPlaceInput] = useState(location.label);
@@ -95,8 +95,7 @@ export function HomePage() {
   const sourcesCountLabel = metaQuery.data ? `${metaQuery.data.sources_count} fontes` : '6 fontes';
 
   const nearestUnit = nearbyQuery.data?.[0];
-  const mapUnits = nearbyQuery.data?.slice(0, 3) ?? [];
-  const pinClasses = ['pin-main', 'pin-second', 'pin-third'] as const;
+  const mapUnits = nearbyQuery.data?.slice(0, 6) ?? [];
 
   const showSearchPanel =
     Boolean(feedbackBanner) || (debouncedText.trim().length >= 2 && searchQuery.data !== undefined);
@@ -447,64 +446,7 @@ export function HomePage() {
             </Link>
           </div>
 
-          <div className="map" aria-label="Mapa ilustrativo com unidades próximas">
-            <div className="road r1" />
-            <div className="road r2" />
-            <div className="road r3" />
-            <div className="road r4" />
-            <div className="block b1" />
-            <div className="block b2" />
-            <div className="block b3" />
-            <div className="block b4" />
-            <div className="park" />
-
-            {(mapUnits.length > 0
-              ? mapUnits
-              : [
-                  { cnes_code: '9990001', name: 'UBS República', kind: 'ubs' as const },
-                  { cnes_code: '9990002', name: 'UBS Sé', kind: 'ubs' as const },
-                  { cnes_code: '9990003', name: 'UBS Santa Cecília', kind: 'hospital' as const },
-                ]
-            ).map((u, idx) => {
-              const pinClass = pinClasses[idx] ?? 'pin-third';
-              const isActive = activePinCnes === u.cnes_code;
-              return (
-                <span
-                  key={u.cnes_code}
-                  role="button"
-                  tabIndex={0}
-                  aria-label={u.name}
-                  className={`map-pin ${pinClass}`}
-                  onClick={() => setActivePinCnes(isActive ? null : u.cnes_code)}
-                  onFocus={() => setActivePinCnes(u.cnes_code)}
-                  onBlur={() => setActivePinCnes(null)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      setActivePinCnes(isActive ? null : u.cnes_code);
-                    }
-                  }}
-                >
-                  <Icon name="hospital" size={idx === 0 ? 21 : 17} />
-                  {isActive && <span className="pin-tooltip">{u.name}</span>}
-                </span>
-              );
-            })}
-
-            <span className="you">
-              <i />
-              Você está aqui
-            </span>
-
-            <div className="map-legend">
-              <span>
-                <i /> UBS
-              </span>
-              <span>
-                <i /> Hospital
-              </span>
-            </div>
-          </div>
+          <NearbyUnitsMap units={mapUnits} centerLat={location.lat} centerLng={location.lng} />
         </div>
       </section>
 

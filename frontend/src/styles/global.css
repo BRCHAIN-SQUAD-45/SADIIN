@@ -360,3 +360,103 @@
   font-weight: 700;
   display: inline-flex;
 }
+
+/* Fase 5 — Mapa interativo real com Leaflet mantendo visual do protótipo */
+.map-leaflet-wrapper {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+.map-leaflet-container {
+  width: 100%;
+  height: 100%;
+  font-family: var(--font-sans);
+}
+.leaflet-custom-pin,
+.leaflet-user-pin {
+  background: transparent;
+  border: 0;
+}
+.you-leaflet-badge {
+  color: #345954;
+  background: #fff;
+  border-radius: 5px;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 7px;
+  font-size: var(--fs-7);
+  font-weight: 600;
+  white-space: nowrap;
+  display: inline-flex;
+  box-shadow: 0 3px 9px #214f4824;
+}
+.you-leaflet-badge i {
+  background: #2384c2;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  width: 8px;
+  height: 8px;
+  box-shadow: 0 0 0 2px #2384c240;
+  display: inline-block;
+}
+.map-popup-card {
+  font-family: var(--font-sans);
+  min-width: 170px;
+}
+.map-popup-card strong {
+  color: #123e3a;
+  font-size: var(--fs-10);
+  display: block;
+}
+.map-popup-card p {
+  color: #718783;
+  margin: 3px 0 5px;
+  font-size: var(--fs-8);
+}
+.map-popup-card small {
+  color: #0d8977;
+  font-size: var(--fs-7);
+  font-weight: 700;
+  display: block;
+  margin-bottom: 6px;
+}
+.map-popup-card a {
+  color: #087e70;
+  font-size: var(--fs-8);
+  font-weight: 700;
+}
+
+/* Alinhamento Issues #13 (US-02.3), #16 (US-03.3) e #20/#21 (US-04.4 Recharts) */
+.card-alert-tags {
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 8px;
+  display: flex;
+}
+.card-alert-tag {
+  color: #0d6d5f;
+  background: #e8f5f1;
+  border: 1px solid #cce3dd;
+  border-radius: 12px;
+  padding: 2px 8px;
+  font-size: var(--fs-7);
+  font-weight: 700;
+  display: inline-flex;
+}
+.card-alert-tag.prescription {
+  color: #8f5c14;
+  background: #fff3dc;
+  border-color: #f0d7a7;
+}
+.card-alert-tag.symptom {
+  color: #46706a;
+  background: #f4f8f7;
+  border-color: #dce8e5;
+  font-weight: 600;
+}
+.recharts-flow-wrapper {
+  justify-content: center;
+  padding: 12px 14px 0;
+  display: flex;
+  overflow-x: auto;
+}

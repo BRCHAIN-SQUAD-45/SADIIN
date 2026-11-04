@@ -14,9 +14,8 @@ Os números abaixo foram extraídos diretamente dos logs de execução (`input_t
 | 28/10/2026 | [`FE02`](./prompts/FE02-scaffold-cliente-http-msw.md) — Fase 1 | Scaffold React 18 + Vite + TS, cliente HTTP, schemas Zod, MSW e Docker | 22 | 273.938 | 33.451 | 307.389 |
 | 28/10/2026 | [`FE03`](./prompts/FE03-layout-global-e-home.md) — Fase 2 | Layout global (`GovBar`, `Header`, `Footer`), página Home e 34 testes Vitest | 69 | 455.470 | 92.207 | 547.677 |
 | 28/10/2026 | [`FE04`](./prompts/FE04-telas-medicamentos-doencas-ubs.md) — Fase 3 | Páginas de Medicamentos, Doenças e Sintomas, Detalhes da UBS e 40 testes Vitest | 70 | 313.866 | 63.218 | 377.084 |
-| **Subtotal Front-end (até Fase 3)** | — | — | **176** | **1.910.056** | **215.308** | **2.125.364** |
-
-> *Nota: Conforme as Fases 4 a 6 do Front-end forem concluídas, as linhas correspondentes serão adicionadas a esta tabela.*
+| 02/11/2026 | [`FE05`](./prompts/FE05-mappers-mapa-leaflet-contrato.md) — Fases 4, 5 e 6 | Camada de mappers, mapa interativo Leaflet, gráfico Recharts (`US-04.4`), contrato `/api/v1` e 47 testes Vitest | 35 | 1.851.947 | 108.904 | 1.960.851 |
+| **Total Front-end (Fases 0 a 6)** | — | — | **211** | **3.762.003** | **324.212** | **4.086.215** |
 
 ---
 

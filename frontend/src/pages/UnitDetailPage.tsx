@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
+import { UnitAttendanceChart } from '../components/charts/UnitAttendanceChart';
 import { Icon, isIconName } from '../components/ui/Icon';
 import { EmptyState, ErrorState, ProvenanceTags, Skeleton } from '../components/ui/States';
 import {
@@ -274,46 +275,11 @@ function UnitDetailContent({
                 />
               </div>
             ) : (
-              <>
-                <div
-                  className="flow-chart"
-                  role="list"
-                  aria-label="Atendimentos nos últimos 7 dias"
-                >
-                  {history.days.map((d) => {
-                    const isHovered = hoveredDay === d.date;
-                    return (
-                      <div
-                        key={d.date}
-                        role="listitem"
-                        tabIndex={0}
-                        className="flow-bar"
-                        title={`${d.weekday_label}: ${d.attendances} atendimentos`}
-                        aria-label={`${d.weekday_label}: ${d.attendances} atendimentos`}
-                        onMouseEnter={() => onHoverDay(d.date)}
-                        onMouseLeave={() => onHoverDay(null)}
-                        onFocus={() => onHoverDay(d.date)}
-                        onBlur={() => onHoverDay(null)}
-                      >
-                        <span>{isHovered ? `${d.attendances} atend.` : d.attendances}</span>
-                        <div>
-                          <i style={{ height: `${Math.min(100, d.attendances)}%` }} />
-                        </div>
-                        <small>{d.weekday_label}</small>
-                      </div>
-                    );
-                  })}
-                </div>
-                <div className="chart-summary">
-                  <span>
-                    <i /> {formatInt(history.total)} atendimentos na semana{' '}
-                    <ProvenanceTags meta={history.meta} />
-                  </span>
-                  <strong>
-                    {formatInt(history.daily_average)} <small>média por dia</small>
-                  </strong>
-                </div>
-              </>
+              <UnitAttendanceChart
+                history={history}
+                hoveredDay={hoveredDay}
+                onHoverDay={onHoverDay}
+              />
             )}
           </article>
 
