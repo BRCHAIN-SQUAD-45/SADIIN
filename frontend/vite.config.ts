@@ -6,6 +6,7 @@ import react from '@vitejs/plugin-react';
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), 'VITE_');
   const proxyTarget = env.VITE_DEV_PROXY_TARGET || 'http://localhost:8000';
+  const isApiMode = env.VITE_DATA_MODE === 'api';
 
   return {
     plugins: [react()],
@@ -14,12 +15,14 @@ export default defineConfig(({ mode }) => {
       // Em `VITE_DATA_MODE=api` com `VITE_API_URL` vazio, as chamadas vão para
       // a mesma origem (/api/...) e este proxy as repassa ao back-end local,
       // evitando CORS durante o desenvolvimento.
-      proxy: {
-        '/api': {
-          target: proxyTarget,
-          changeOrigin: true,
-        },
-      },
+      proxy: isApiMode
+        ? {
+            '/api': {
+              target: proxyTarget,
+              changeOrigin: true,
+            },
+          }
+        : undefined,
     },
     preview: {
       port: 4173,

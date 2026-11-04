@@ -571,6 +571,7 @@ export const sourcesFixture: SourceItem[] = [
   { id: 'esus-aps', name: 'e-SUS APS', subtitle: 'Atenção Primária' },
   { id: 'opendatasus', name: 'OpenDataSUS', subtitle: 'Dados abertos' },
   { id: 'rnds', name: 'RNDS', subtitle: 'Padrão FHIR R4' },
+  { id: 'ibge', name: 'IBGE', subtitle: 'Malha territorial' },
 ];
 
 /** Mapeamento coloquial → termo oficial (US-01.1) e regras de fallback seguro nos mocks. */
