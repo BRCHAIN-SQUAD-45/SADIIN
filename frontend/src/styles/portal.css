@@ -662,6 +662,14 @@ a {
 .open-badge.closed i {
   background: #b7666b;
 }
+/* Horário não informado pela fonte (CNES): neutro, nem verde nem vermelho. */
+.open-badge.unknown {
+  color: #5b6b68;
+  background: #eef2f1;
+}
+.open-badge.unknown i {
+  background: #9aa8a5;
+}
 .facility-meta {
   color: #718581;
   border-top: 1px solid #edf2f1;

@@ -7,7 +7,9 @@ import {
   formatDistanceLabel,
   formatInt,
   formatMovementLabel,
+  formatOpenStatus,
   formatPct,
+  type OpenStatusLabel,
 } from '../utils/format';
 
 /**
@@ -82,8 +84,8 @@ export interface UnitPinView {
   cityUf: string;
   lat: number;
   lng: number;
-  isOpen: boolean;
-  statusLabel: 'Aberta agora' | 'Fechada';
+  isOpen: boolean | null;
+  statusLabel: OpenStatusLabel;
   closesAtLabel: string;
   distanceLabel: string;
   phone?: string;
@@ -102,7 +104,7 @@ export function mapUnitSummaryToPinView(unit: UnitSummary): UnitPinView {
     lat: unit.lat,
     lng: unit.lng,
     isOpen: unit.is_open,
-    statusLabel: unit.is_open ? 'Aberta agora' : 'Fechada',
+    statusLabel: formatOpenStatus(unit.is_open).label,
     closesAtLabel: formatClosesAt(unit.closes_at),
     distanceLabel: formatDistanceLabel(unit.distance_m),
     phone: unit.phone,

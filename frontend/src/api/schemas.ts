@@ -22,7 +22,8 @@ export const pageSchema = <T extends z.ZodTypeAny>(item: T) =>
     items: z.array(item),
     page: z.number().int().min(1),
     page_size: z.number().int().min(1),
-    total: z.number().int().min(0),
+    /** `null` quando a fonte não informa o total (ex.: CNES paginado sem contagem). */
+    total: z.number().int().min(0).nullable(),
     meta: ProvenanceMetaSchema.optional(),
   });
 
@@ -38,8 +39,9 @@ export const ApiErrorBodySchema = z.object({
 
 /** GET /meta — barra gov + cards do hero. */
 export const PortalMetaSchema = z.object({
-  data_updated_at: IsoDateTime,
-  establishments_count: z.number().int().min(0),
+  data_updated_at: IsoDateTime.nullable(),
+  /** `null` quando a fonte não publica a contagem nacional de estabelecimentos. */
+  establishments_count: z.number().int().min(0).nullable(),
   sources_count: z.number().int().min(0),
 });
 
@@ -112,9 +114,13 @@ export const UnitSummarySchema = z.object({
   uf: z.string().length(2),
   lat: z.number(),
   lng: z.number(),
-  phone: z.string().optional(),
+  phone: z
+    .string()
+    .nullish()
+    .transform((v) => v ?? undefined),
   distance_m: z.number().nonnegative().optional(),
-  is_open: z.boolean(),
+  /** `null` = horário não informado pela fonte (nunca assumir "fechada"). */
+  is_open: z.boolean().nullable(),
   closes_at: z.string().optional(),
   kind: z.enum(['ubs', 'hospital', 'other']),
 });
@@ -124,11 +130,17 @@ export const UnitPageSchema = pageSchema(UnitSummarySchema);
 
 /** Detalhe da UBS (`GET /ubs/{cnes}`). */
 export const UnitDetailSchema = UnitSummarySchema.extend({
-  opening_hours: z.object({
-    open: z.string(),
-    close: z.string(),
-  }),
-  today_label: z.string(),
+  /** Ausente/`null` quando o CNES não publica horário estruturado. */
+  opening_hours: z
+    .object({
+      open: z.string(),
+      close: z.string(),
+    })
+    .nullish(),
+  /** Se ausente, o front calcula a data de hoje localmente. */
+  today_label: z.string().optional(),
+  /** Texto livre do CNES, ex.: "ATENDIMENTO NOS TURNOS DA MANHA, TARDE E NOITE". */
+  turno_atendimento: z.string().nullish(),
   data_updated_at: IsoDateTime,
   source_label: z.string(),
 });
@@ -213,8 +225,9 @@ export const CityItemSchema = z.object({
   ibge_code: z.string(),
   name: z.string(),
   uf: z.string().length(2),
-  lat: z.number(),
-  lng: z.number(),
+  /** A API de localidades do IBGE não traz coordenadas; nesse caso o mapa centraliza nas UBS. */
+  lat: z.number().optional(),
+  lng: z.number().optional(),
 });
 
 export const CityListSchema = z.array(CityItemSchema);

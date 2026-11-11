@@ -5,7 +5,7 @@ import { NearbyUnitsMap } from '../components/map/NearbyUnitsMap';
 import { Icon, isIconName } from '../components/ui/Icon';
 import { EmptyState, ErrorState, ProvenanceTags, Skeleton } from '../components/ui/States';
 import { useRegionalDashboard } from '../features/dashboard/useRegionalDashboard';
-import { useLocationSelection } from '../features/location/useLocation';
+import { DEFAULT_LOCATION, useLocationSelection } from '../features/location/useLocation';
 import { useMeta } from '../features/meta/useMeta';
 import { useNews } from '../features/news/useNews';
 import { useGlobalSearch } from '../features/search/useGlobalSearch';
@@ -19,6 +19,7 @@ import {
   formatDistanceLabel,
   formatEstablishmentsShort,
   formatNewsDayMonth,
+  formatOpenStatus,
   formatPct,
   formatSignedPct,
 } from '../utils/format';
@@ -53,7 +54,7 @@ export function HomePage() {
     cityIbge: location.ibgeCode,
     enabled: effectiveSearchTerm.trim().length >= 2,
   });
-  const nearbyQuery = useNearbyUnits(location.lat, location.lng, 10);
+  const nearbyQuery = useNearbyUnits(location.lat, location.lng, 10, location.ibgeCode);
   const newsQuery = useNews(location.uf, location.ibgeCode);
   const dashboardQuery = useRegionalDashboard(location.uf, location.ibgeCode);
   const sourcesQuery = useSources();
@@ -89,13 +90,21 @@ export function HomePage() {
     );
   };
 
-  const establishmentsLabel = metaQuery.data
-    ? formatEstablishmentsShort(metaQuery.data.establishments_count)
-    : '452 mil';
-  const sourcesCountLabel = metaQuery.data ? `${metaQuery.data.sources_count} fontes` : '6 fontes';
+  // Sem dado (carregando, erro ou `null` vindo da fonte) mostramos "—", nunca um número inventado.
+  const establishmentsCount = metaQuery.data?.establishments_count;
+  const establishmentsLabel =
+    establishmentsCount != null ? formatEstablishmentsShort(establishmentsCount) : '—';
+  const sourcesCountLabel = metaQuery.data ? `${metaQuery.data.sources_count} fontes` : '—';
 
   const nearestUnit = nearbyQuery.data?.[0];
   const mapUnits = nearbyQuery.data?.slice(0, 6) ?? [];
+  // Sem coordenadas da cidade (IBGE não publica), centraliza na primeira UBS retornada.
+  const mapCenter =
+    location.lat !== null && location.lng !== null
+      ? { lat: location.lat, lng: location.lng, isUser: true }
+      : nearestUnit
+        ? { lat: nearestUnit.lat, lng: nearestUnit.lng, isUser: false }
+        : { lat: DEFAULT_LOCATION.lat!, lng: DEFAULT_LOCATION.lng!, isUser: false };
 
   const showSearchPanel =
     Boolean(feedbackBanner) || (debouncedText.trim().length >= 2 && searchQuery.data !== undefined);
@@ -257,7 +266,7 @@ export function HomePage() {
                                 <strong>{u.name}</strong>
                                 <small>{u.address}</small>
                               </div>
-                              <span>{u.is_open ? 'Aberta agora' : 'Fechada'}</span>
+                              <span>{formatOpenStatus(u.is_open).label}</span>
                             </Link>
                           </li>
                         ))}
@@ -403,16 +412,16 @@ export function HomePage() {
                   </span>
                   <div>
                     <small>
-                      MAIS PRÓXIMA
+                      {/* Sem distância (cidade escolhida sem GPS) não dá para afirmar "mais próxima". */}
                       {nearestUnit.distance_m !== undefined
-                        ? ` • ${formatDistanceLabel(nearestUnit.distance_m)}`
-                        : ''}
+                        ? `MAIS PRÓXIMA • ${formatDistanceLabel(nearestUnit.distance_m)}`
+                        : `UNIDADE EM ${location.cityName.toUpperCase()}`}
                     </small>
                     <strong>{nearestUnit.name}</strong>
                     <p>{nearestUnit.address}</p>
                   </div>
-                  <span className={`open-badge${nearestUnit.is_open ? '' : ' closed'}`}>
-                    <i /> {nearestUnit.is_open ? 'Aberta agora' : 'Fechada'}
+                  <span className={formatOpenStatus(nearestUnit.is_open).badgeClass}>
+                    <i /> {formatOpenStatus(nearestUnit.is_open).label}
                   </span>
                 </div>
 
@@ -446,7 +455,12 @@ export function HomePage() {
             </Link>
           </div>
 
-          <NearbyUnitsMap units={mapUnits} centerLat={location.lat} centerLng={location.lng} />
+          <NearbyUnitsMap
+            units={mapUnits}
+            centerLat={mapCenter.lat}
+            centerLng={mapCenter.lng}
+            showUserMarker={mapCenter.isUser}
+          />
         </div>
       </section>
 

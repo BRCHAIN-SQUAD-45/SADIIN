@@ -22,3 +22,13 @@ Os números abaixo foram extraídos diretamente dos logs de execução (`input_t
 ## 2. Desenvolvimento Back-end e Chamadas da API de IA (Responsáveis: Back-end e IA)
 
 *(Seção reservada para preenchimento nas branches de Back-end e IA com o consumo de tokens dos conectores e das chamadas em tempo de execução das LLMs).*
+
+---
+
+## 3. Integração Front-end ↔ Back-end (Responsável: Nícolas)
+
+| Data | Prompt / Etapa | Escopo Entregue | Ferramenta / Plano | Contexto final da sessão (tokens) |
+|---|---|---|---|---:|
+| 10/11/2026 | [`INT01`](./prompts/INT01-integracao-front-back.md) | Verificação ao vivo das 21 rotas, ajustes de contrato, tratamento de 501, 11 testes novos, docs | Claude Code (Claude Opus 5.5), plano **Pro** (assinatura, sem cobrança por token) | ≈ 269.000 |
+
+> **Como ler este número:** o app do Claude Code informa o tamanho do contexto da sessão (≈ 269 mil tokens de 1 milhão, cerca de 27%), e não a soma de tokens de entrada e saída de cada chamada, como na tabela do Front-end. Por isso o valor não é diretamente comparável com a seção 1. No plano Pro o custo é a assinatura mensal: a sessão consumiu cerca de 14% do limite de 5 horas e 15% do limite semanal.

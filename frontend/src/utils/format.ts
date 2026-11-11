@@ -104,13 +104,47 @@ export function formatMovementLabel(level: 'baixo' | 'moderado' | 'alto'): strin
   return labels[level];
 }
 
-/** `"2025-05-28T08:42:00Z"` -> `"Hoje, às 08:42"` (formato exibido no contato da UBS no protótipo). */
-export function formatUnitUpdatedLabel(iso: string): string {
+/**
+ * Data de atualização da UBS.
+ * Mesmo dia (UTC) -> `"Hoje, às 08:42"` (formato do protótipo); outros dias -> `"27/02/2026"`.
+ */
+export function formatUnitUpdatedLabel(iso: string, now: Date = new Date()): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
-  const hh = String(d.getUTCHours()).padStart(2, '0');
-  const mm = String(d.getUTCMinutes()).padStart(2, '0');
-  return `Hoje, às ${hh}:${mm}`;
+  const sameDay = d.toISOString().slice(0, 10) === now.toISOString().slice(0, 10);
+  if (sameDay) {
+    const hh = String(d.getUTCHours()).padStart(2, '0');
+    const mm = String(d.getUTCMinutes()).padStart(2, '0');
+    return `Hoje, às ${hh}:${mm}`;
+  }
+  const dd = String(d.getUTCDate()).padStart(2, '0');
+  const mo = String(d.getUTCMonth() + 1).padStart(2, '0');
+  return `${dd}/${mo}/${d.getUTCFullYear()}`;
+}
+
+export type OpenStatusLabel = 'Aberta agora' | 'Fechada' | 'Horário não informado';
+
+/**
+ * Status de funcionamento. `null` significa que a fonte (CNES) não informa o horário:
+ * nunca exibimos "Fechada" para um dado ausente.
+ */
+export function formatOpenStatus(isOpen: boolean | null | undefined): {
+  label: OpenStatusLabel;
+  badgeClass: string;
+} {
+  if (isOpen === true) return { label: 'Aberta agora', badgeClass: 'open-badge' };
+  if (isOpen === false) return { label: 'Fechada', badgeClass: 'open-badge closed' };
+  return { label: 'Horário não informado', badgeClass: 'open-badge unknown' };
+}
+
+/** `"Quarta-feira, 11 de novembro"` para a data de hoje. */
+export function formatTodayLabel(now: Date = new Date()): string {
+  const label = new Intl.DateTimeFormat('pt-BR', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  }).format(now);
+  return label.charAt(0).toUpperCase() + label.slice(1);
 }
 
 /** Imagem SVG local neutra caso uma URL externa falhe (regra 3.1). */

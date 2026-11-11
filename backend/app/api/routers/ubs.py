@@ -1,5 +1,6 @@
 import logging
 import os
+from datetime import datetime, timezone
 
 import httpx
 from fastapi import APIRouter, Query
@@ -162,10 +163,27 @@ async def get_unit_detail(cnes: str):
         "is_open": None,
         "kind": unidade_tipo(unit.get("id_tipo_unidade")),
         "phone": unit.get("telefone"),
-        "data_updated_at": unit.get("data_atualizacao"),
+        "data_updated_at": _iso_datetime(unit.get("data_atualizacao")),
         "source_label": CNES_SOURCE,
         "turno_atendimento": unit.get("turno_atendimento"),
     }
+
+
+def _iso_datetime(value: str | None) -> str:
+    """Converte a data do CNES ("2026-02-27") para ISO-8601 com timezone, como pede o contrato.
+
+    Sem data na fonte, usa o momento da consulta (a ficha foi lida do CNES agora).
+    """
+    if value:
+        try:
+            parsed = datetime.fromisoformat(str(value))
+        except ValueError:
+            logger.info("data_atualizacao CNES em formato inesperado: %r", value)
+        else:
+            if parsed.tzinfo is None:
+                parsed = parsed.replace(tzinfo=timezone.utc)
+            return parsed.isoformat()
+    return datetime.now(timezone.utc).isoformat()
 
 
 def _unavailable(endpoint: str, message: str) -> JSONResponse:
