@@ -12,52 +12,9 @@ interface NearbyUnitsMapProps {
   units: UnitSummary[];
   centerLat: number;
   centerLng: number;
+  /** `false` quando o centro é a primeira UBS (cidade sem coordenadas), não o usuário. */
+  showUserMarker?: boolean;
 }
-
-const DEFAULT_FALLBACK_UNITS: UnitSummary[] = [
-  {
-    cnes_code: '9990001',
-    name: 'UBS República',
-    address: 'Praça da Bandeira, 15 — Centro',
-    city: 'São Paulo',
-    uf: 'SP',
-    lat: -23.5489,
-    lng: -46.6388,
-    phone: '(11) 3333-0180',
-    distance_m: 850,
-    is_open: true,
-    closes_at: '19:00',
-    kind: 'ubs',
-  },
-  {
-    cnes_code: '9990002',
-    name: 'UBS Sé',
-    address: 'Rua Frederico Alvarenga, 259 — Sé',
-    city: 'São Paulo',
-    uf: 'SP',
-    lat: -23.5515,
-    lng: -46.6302,
-    phone: '(11) 3105-4210',
-    distance_m: 1320,
-    is_open: true,
-    closes_at: '19:00',
-    kind: 'ubs',
-  },
-  {
-    cnes_code: '9990003',
-    name: 'UBS Santa Cecília',
-    address: 'Rua Vitorino Carmilo, 599 — Santa Cecília',
-    city: 'São Paulo',
-    uf: 'SP',
-    lat: -23.5362,
-    lng: -46.6512,
-    phone: '(11) 3826-1900',
-    distance_m: 1940,
-    is_open: true,
-    closes_at: '19:00',
-    kind: 'hospital',
-  },
-];
 
 const PIN_POSITIONS = ['pin-main', 'pin-second', 'pin-third'] as const;
 
@@ -88,11 +45,17 @@ const userLocationDivIcon = L.divIcon({
   iconAnchor: [55, 13],
 });
 
-export function NearbyUnitsMap({ units, centerLat, centerLng }: NearbyUnitsMapProps) {
+export function NearbyUnitsMap({
+  units,
+  centerLat,
+  centerLng,
+  showUserMarker = true,
+}: NearbyUnitsMapProps) {
   const [activePinCnes, setActivePinCnes] = useState<string | null>(null);
   const env = getEnv();
 
-  const effectiveUnits = units.length > 0 ? units.slice(0, 6) : DEFAULT_FALLBACK_UNITS;
+  // Sem UBS retornadas, o mapa fica sem pinos: nunca exibimos unidades fictícias.
+  const effectiveUnits = useMemo(() => units.slice(0, 6), [units]);
   const pinViews = useMemo(
     () => effectiveUnits.map((u) => mapUnitSummaryToPinView(u)),
     [effectiveUnits],
@@ -111,7 +74,9 @@ export function NearbyUnitsMap({ units, centerLat, centerLng }: NearbyUnitsMapPr
           <MapCenterUpdater lat={centerLat} lng={centerLng} />
           <TileLayer url={env.VITE_MAP_TILE_URL} attribution={env.VITE_MAP_ATTRIBUTION} />
 
-          <Marker position={[centerLat, centerLng]} icon={userLocationDivIcon} />
+          {showUserMarker && (
+            <Marker position={[centerLat, centerLng]} icon={userLocationDivIcon} />
+          )}
 
           {pinViews.map((pin, idx) => (
             <Marker
@@ -165,10 +130,12 @@ export function NearbyUnitsMap({ units, centerLat, centerLng }: NearbyUnitsMapPr
         );
       })}
 
-      <span className="you">
-        <i />
-        Você está aqui
-      </span>
+      {showUserMarker && (
+        <span className="you">
+          <i />
+          Você está aqui
+        </span>
+      )}
 
       <div className="map-legend">
         <span>

@@ -9,8 +9,12 @@ export interface SelectedLocation {
   uf: string;
   cityName: string;
   ibgeCode: string;
-  lat: number;
-  lng: number;
+  /**
+   * `null` quando a cidade veio da lista do IBGE (que não traz coordenadas).
+   * Nesse caso as UBS são buscadas pelo `ibgeCode` e o mapa centraliza nelas.
+   */
+  lat: number | null;
+  lng: number | null;
   /** Ex.: `"São Paulo, SP"` ou `"Localização atual"`. */
   label: string;
 }
@@ -33,8 +37,8 @@ function validateLocation(raw: unknown): SelectedLocation | null {
     typeof r.uf === 'string' &&
     typeof r.cityName === 'string' &&
     typeof r.ibgeCode === 'string' &&
-    typeof r.lat === 'number' &&
-    typeof r.lng === 'number' &&
+    (typeof r.lat === 'number' || r.lat === null) &&
+    (typeof r.lng === 'number' || r.lng === null) &&
     typeof r.label === 'string'
   ) {
     return r as unknown as SelectedLocation;

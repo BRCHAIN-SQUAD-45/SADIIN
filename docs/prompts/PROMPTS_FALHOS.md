@@ -7,6 +7,7 @@ Este documento registra os casos em que prompts de desenvolvimento geraram probl
 ## Falhas Registradas no Front-end (Responsável: Lia)
 
 ### FE-F01 — Extração do Protótipo (`FE01 v1.0`): Textos e Pseudo-elementos CSS com Encoding Corrompido
+
 - **Data:** 15/10/2026
 - **Prompt Relacionado:** [`FE01-inventario-prototipo-contrato.md`](./FE01-inventario-prototipo-contrato.md)
 - **O que pedimos:** Extrair diretamente as strings de interface e regras CSS do bundle exportado do protótipo no Figma.
@@ -16,6 +17,7 @@ Este documento registra os casos em que prompts de desenvolvimento geraram probl
 ---
 
 ### FE-F02 — Cliente HTTP + Testes (`FE02 v1.0`): Conflito de `AbortSignal` entre `jsdom` e `fetch` do Node
+
 - **Data:** 28/10/2026
 - **Prompt Relacionado:** [`FE02-scaffold-cliente-http-msw.md`](./FE02-scaffold-cliente-http-msw.md)
 - **O que pedimos:** Gerar o cliente HTTP (`src/api/client.ts`) com timeout via `AbortController` e os testes unitários no Vitest usando o ambiente `jsdom` padrão.
@@ -25,6 +27,7 @@ Este documento registra os casos em que prompts de desenvolvimento geraram probl
 ---
 
 ### FE-F03 — Testes de Rotas SPA (`FE03 v1.0`): Erro `window.scrollTo` não implementado no `jsdom`
+
 - **Data:** 28/10/2026
 - **Prompt Relacionado:** [`FE03-layout-global-e-home.md`](./FE03-layout-global-e-home.md)
 - **O que pedimos:** Implementar o roteador SPA com `<ScrollRestoration />` do React Router e testar a navegação entre páginas no Vitest.
@@ -34,11 +37,44 @@ Este documento registra os casos em que prompts de desenvolvimento geraram probl
 ---
 
 ### FE-F04 — Pinos Acessíveis do Mapa (`FE05 v1.0`): Conflito entre `onFocus` e `onClick` ao clicar no pino
+
 - **Data:** 29/10/2026
 - **Prompt Relacionado:** [`FE05-mappers-mapa-leaflet-contrato.md`](./FE05-mappers-mapa-leaflet-contrato.md)
 - **O que pedimos:** Tornar os pinos de UBS do mapa acessíveis por teclado (`tabIndex={0}`, `onFocus`, `onClick`) exibindo o tooltip com o nome da unidade.
 - **O que veio (Problema):** O handler `onClick={() => setActivePinCnes(isActive ? null : u.cnes)}` combinado com `onFocus={() => setActivePinCnes(u.cnes)}` fazia com que um clique de mouse primeiro disparasse `focus` (`isActive = true`) e em seguida `click` (`isActive = null`), fechando o tooltip imediatamente.
 - **O que mudamos (`FE05 v1.1`):** Ajustamos `onClick` para ativar diretamente `setActivePinCnes(u.cnes)`, mantendo a alternância apenas nas teclas `Enter`/`Espaço` e o fechamento no `onBlur`.
+
+---
+
+## Falhas Registradas na Integração Front ↔ Back (Responsável: Nícolas)
+
+### INT-F01 — `contract:check` não testava o back-end real (`INT01 v1.0`)
+
+- **Data:** 10/11/2026
+- **Prompt Relacionado:** [`INT01-integracao-front-back.md`](./INT01-integracao-front-back.md)
+- **O que pedimos:** Validar as rotas do back-end com `npm run contract:check`, como sugeria o guia de integração.
+- **O que veio (Problema):** O comando passava, mas ele valida as respostas do **MSW (mocks)**, não do FastAPI. Contra o back-end real, só 4 de 21 rotas estavam dentro do contrato.
+- **O que mudamos:** Criamos `npm run contract:live` (`frontend/scripts/live-contract-check.ts`), que chama o back-end real e valida cada resposta com os mesmos schemas Zod.
+
+---
+
+### INT-F02 — Teste de rota quebrou após mostrar a UBS aberta no seletor (`INT01 v1.0`)
+
+- **Data:** 10/11/2026
+- **Prompt Relacionado:** [`INT01-integracao-front-back.md`](./INT01-integracao-front-back.md)
+- **O que pedimos:** Remover as UBS fictícias do seletor e garantir que a unidade aberta sempre aparece nele.
+- **O que veio (Problema):** O teste `/unidades/9990001` de `router.test.tsx` falhou com `Found multiple elements with the text: /UBS República/`, porque agora o nome aparece no título e no `<option>` do seletor.
+- **O que mudamos:** O teste passou a procurar o título (`getByRole('heading')`) e a conferir que o seletor está com o CNES certo.
+
+---
+
+### INT-F03 — `npm ci` reescreveu `mockServiceWorker.js` (`INT01 v1.0`)
+
+- **Data:** 10/11/2026
+- **Prompt Relacionado:** [`INT01-integracao-front-back.md`](./INT01-integracao-front-back.md)
+- **O que pedimos:** Instalar as dependências do front para rodar a integração.
+- **O que veio (Problema):** O `postinstall` do MSW regenerou `frontend/public/mockServiceWorker.js` sem ponto e vírgula, gerando um diff de 167 linhas que não tinha nada a ver com a tarefa.
+- **O que mudamos:** Restauramos o arquivo com `git checkout` antes do commit. **Atenção, squad:** confiram se esse arquivo não entrou sem querer nos seus PRs.
 
 ---
 

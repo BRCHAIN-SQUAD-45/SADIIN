@@ -16,7 +16,9 @@ import {
   buildTelHref,
   formatInt,
   formatMovementLabel,
+  formatOpenStatus,
   formatPct,
+  formatTodayLabel,
   formatUnitUpdatedLabel,
 } from '../utils/format';
 
@@ -90,14 +92,12 @@ function UnitDetailContent({
   const services = servicesQuery.data ?? [];
   const staff = staffQuery.data;
 
-  const selectorOptions =
-    units.length > 0
-      ? units
-      : [
-          { cnes_code: '9990001', name: 'UBS República' },
-          { cnes_code: '9990002', name: 'UBS Sé' },
-          { cnes_code: '9990003', name: 'UBS Santa Cecília' },
-        ];
+  // A unidade aberta sempre aparece no seletor (ela pode não estar na 1ª página da lista).
+  const selectorOptions: { cnes_code: string; name: string }[] = units.some(
+    (u) => u.cnes_code === cnes,
+  )
+    ? units
+    : [{ cnes_code: cnes, name: unit?.name ?? `CNES ${cnes}` }, ...units];
 
   return (
     <div className="units-page">
@@ -151,8 +151,8 @@ function UnitDetailContent({
               <Icon name="hospital" size={28} />
             </div>
             <div className="unit-identity">
-              <span className={unit.is_open ? 'open-badge' : 'open-badge closed'}>
-                <i /> {unit.is_open ? 'Aberta agora' : 'Fechada'}
+              <span className={formatOpenStatus(unit.is_open).badgeClass}>
+                <i /> {formatOpenStatus(unit.is_open).label}
               </span>
               <h2>{unit.name}</h2>
               <p>
@@ -287,10 +287,10 @@ function UnitDetailContent({
             <div className="unit-panel-head">
               <div>
                 <h2>Funcionamento hoje</h2>
-                <p>{unit?.today_label ?? 'Quarta-feira, 28 de maio'}</p>
+                <p>{unit?.today_label ?? formatTodayLabel()}</p>
               </div>
-              <span className={unit?.is_open !== false ? 'open-badge' : 'open-badge closed'}>
-                <i /> {unit?.is_open !== false ? 'Aberta' : 'Fechada'}
+              <span className={formatOpenStatus(unit?.is_open).badgeClass}>
+                <i /> {formatOpenStatus(unit?.is_open).label}
               </span>
             </div>
             <div className="hours">
@@ -299,24 +299,25 @@ function UnitDetailContent({
                 <small>HORÁRIO DE ATENDIMENTO</small>
               </span>
               <strong>
-                {unit
+                {unit?.opening_hours
                   ? `${unit.opening_hours.open} — ${unit.opening_hours.close}`
-                  : '07:00 — 19:00'}
+                  : (unit?.turno_atendimento ?? 'Não informado')}
               </strong>
             </div>
             <div className="operation-row">
               <span>Capacidade de atendimento</span>
-              <strong>{metrics ? `${metrics.capacity_pct}%` : '72%'}</strong>
+              <strong>{metrics ? `${metrics.capacity_pct}%` : 'Não informado'}</strong>
             </div>
             <div className="capacity">
-              <i style={{ width: `${metrics?.capacity_pct ?? 72}%` }} />
+              <i style={{ width: `${metrics?.capacity_pct ?? 0}%` }} />
             </div>
             <div className="best-time">
               <Icon name="check" size={17} />
               <div>
                 <strong>Melhor horário para ir</strong>
                 <span>
-                  {metrics?.best_time_hint ?? 'Entre 14h e 16h, com menor tempo de espera.'}
+                  {metrics?.best_time_hint ??
+                    'Sem dados de movimento para esta unidade. Ligue antes de ir.'}
                 </span>
               </div>
             </div>
@@ -461,14 +462,14 @@ function UnitDetailContent({
               <Icon name="phone" size={16} />
               <span>
                 <small>TELEFONE</small>
-                {unit?.phone ?? '(11) 3333-0180'}
+                {unit?.phone ?? 'Não informado'}
               </span>
             </p>
             <p>
               <Icon name="clock" size={16} />
               <span>
                 <small>ATUALIZAÇÃO DOS DADOS</small>
-                {unit ? formatUnitUpdatedLabel(unit.data_updated_at) : 'Hoje, às 08:42'}
+                {unit ? formatUnitUpdatedLabel(unit.data_updated_at) : '—'}
               </span>
             </p>
             <p>

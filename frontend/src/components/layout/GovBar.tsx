@@ -18,8 +18,9 @@ export function GovBar() {
     document.documentElement.setAttribute('data-a11y', a11y ? 'true' : 'false');
   }, [a11y]);
 
-  const updatedLabel = meta.data
-    ? `Dados atualizados em ${formatGovDate(meta.data.data_updated_at)}`
+  const updatedAt = meta.data?.data_updated_at;
+  const updatedLabel = updatedAt
+    ? `Dados atualizados em ${formatGovDate(updatedAt)}`
     : 'Dados públicos oficiais';
 
   return (

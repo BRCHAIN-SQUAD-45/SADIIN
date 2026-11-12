@@ -109,10 +109,15 @@ describe('Fase 2 — Layout global + Home idênticos ao protótipo', () => {
   it.each([
     ['/medicamentos', /Consulte informações sobre indicações/],
     ['/doencas', /Encontre informações confiáveis para reconhecer sintomas/],
-    ['/unidades/9990001', /UBS República/],
     ['/rota-inexistente', /Página não encontrada/],
   ])('%s renderiza a página correspondente', async (path, text) => {
     renderAt(path);
     expect(await screen.findByText(text)).toBeInTheDocument();
+  });
+
+  it('/unidades/9990001 renderiza a ficha da unidade (nome no título e no seletor)', async () => {
+    renderAt('/unidades/9990001');
+    expect(await screen.findByRole('heading', { name: /UBS República/ })).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Selecionar unidade' })).toHaveValue('9990001');
   });
 });

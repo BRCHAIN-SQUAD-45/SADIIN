@@ -50,8 +50,8 @@ export function Header() {
       uf: city.uf,
       cityName: city.name,
       ibgeCode: city.ibge_code,
-      lat: city.lat,
-      lng: city.lng,
+      lat: city.lat ?? null,
+      lng: city.lng ?? null,
       label: `${city.name}, ${city.uf}`,
     });
     setPickerOpen(false);

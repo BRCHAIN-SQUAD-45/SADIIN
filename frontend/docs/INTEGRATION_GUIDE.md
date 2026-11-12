@@ -52,6 +52,25 @@ npm run contract:check
 
 Esse comando valida todas as 18 rotas do contrato contra os schemas Zod definidos em [`src/api/schemas.ts`](../src/api/schemas.ts).
 
+> **Atenção:** `contract:check` valida os **mocks (MSW)**, não o back-end. Para testar o FastAPI de verdade, use o comando abaixo.
+
+### 3.1 Verificação contra o back-end real (`contract:live`)
+
+Com o FastAPI rodando em `http://localhost:8000`:
+
+```bash
+npm run contract:live
+```
+
+O script chama cada rota do back-end real e valida o JSON com os mesmos schemas. Cada linha sai como `OK`, `CONTRATO` (JSON fora do schema, com o campo que quebrou), `ERRO_API` (status de erro com o `code` do back-end) ou `FALHA` (sem conexão ou timeout). Variáveis opcionais: `LIVE_API_URL`, `LIVE_CNES`, `LIVE_CITY_IBGE`, `LIVE_LAT`, `LIVE_LNG`.
+
+### 3.2 Dados ausentes e rotas sem fonte (`501`)
+
+- **`null` significa "a fonte não informa"** e o front nunca transforma isso num valor: `is_open: null` aparece como "Horário não informado" (e não "Fechada"), e `establishments_count: null` aparece como "—".
+- **`501 SOURCE_UNAVAILABLE`** é usado pelo back-end quando ainda não há API pública integrada. O front mostra "Dados ainda não disponíveis" com a mensagem do back-end, **sem** botão de tentar novamente.
+- **Cidades do IBGE não têm coordenadas.** Ao escolher uma cidade na lista, as UBS são buscadas por `city_ibge` e o mapa centraliza na primeira unidade.
+- **Timeout:** a 1ª consulta de UBS de uma cidade grande leva cerca de 9 s (São Paulo) até entrar no cache do back-end. Use `VITE_REQUEST_TIMEOUT_MS=20000`.
+
 ---
 
 ## 4. Simulação de Cenários de Borda na Interface (Modo `mock`)

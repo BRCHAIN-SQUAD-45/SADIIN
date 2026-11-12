@@ -56,6 +56,6 @@ export type Page<T> = {
   items: T[];
   page: number;
   page_size: number;
-  total: number;
+  total: number | null;
   meta?: ProvenanceMeta;
 };

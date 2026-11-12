@@ -85,8 +85,10 @@ export const getConditionById = (id: string, signal?: AbortSignal) =>
   });
 
 export interface NearbyQuery {
-  lat: number;
-  lng: number;
+  /** Com lat/lng o back-end ordena por distância; sem elas, usa `city_ibge`. */
+  lat?: number;
+  lng?: number;
+  city_ibge?: string;
   radius_km?: number;
 }
 
