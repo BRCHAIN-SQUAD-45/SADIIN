@@ -4,7 +4,7 @@ import logging
 
 from app.api.responses import api_error
 # Importação de todos os roteadores
-from app.api.routers import meta, dashboard, medications, conditions, ubs, locations
+from app.api.routers import meta, dashboard, medications, conditions, ubs, locations, insercoes
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +17,11 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+)
+
+app.include_router(
+    insercoes.router,
+    prefix="/api/v1"
 )
 
 # Tratamento Global de Erros (Envelope padrão exigido)
