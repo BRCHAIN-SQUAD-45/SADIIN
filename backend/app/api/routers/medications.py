@@ -3,11 +3,18 @@ import math
 from datetime import date, datetime, timedelta, timezone
 
 import httpx
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 
 from app.api.responses import api_error, source_unavailable
+from app.integrations.anvisa import (
+    ANVISA_SOURCE,
+    buscar_medicamento,
+    listar_categorias,
+    listar_medicamentos,
+)
 from app.integrations.bnafar import BnafarConector
 from app.integrations.geocoding import municipio_por_coordenadas
+from app.integrations.ibge import IbgeConector
 from app.integrations.units import distancia_metros
 
 router = APIRouter(tags=["Medicamentos"])
@@ -48,36 +55,85 @@ def _stock_address(row: dict) -> str:
 
 @router.get("/categories")
 async def medication_categories():
-    return source_unavailable(
-        "/medications/categories",
-        "Não há uma API pública operacional integrada para catálogo de medicamentos.",
-    )
+    try:
+        return await listar_categorias()
+    except httpx.HTTPError as exc:
+        logger.warning("Falha ao carregar categorias de medicamentos da ANVISA: %s", exc)
+        return api_error(
+            502,
+            "UPSTREAM_UNAVAILABLE",
+            "Não foi possível consultar o catálogo de medicamentos da ANVISA.",
+            "/medications/categories",
+        )
 
 
 @router.get("")
-async def list_medications():
-    return source_unavailable(
-        "/medications",
-        "O catálogo de medicamentos do SUS não está disponível por API pública operacional neste momento.",
-    )
+async def list_medications(
+    q: str | None = None,
+    category: str | None = None,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+):
+    try:
+        records = await listar_medicamentos(q, category)
+    except httpx.HTTPError as exc:
+        logger.warning("Falha ao carregar catálogo de medicamentos da ANVISA: %s", exc)
+        return api_error(
+            502,
+            "UPSTREAM_UNAVAILABLE",
+            "Não foi possível consultar o catálogo de medicamentos da ANVISA.",
+            "/medications",
+        )
+
+    start = (page - 1) * page_size
+    return {
+        "items": [
+            {
+                key: value
+                for key, value in record.items()
+                if key not in {"synonyms", "regulatory_status", "registration_number", "updated_at"}
+            }
+            for record in records[start : start + page_size]
+        ],
+        "page": page,
+        "page_size": page_size,
+        "total": len(records),
+        "meta": {
+            "source": ANVISA_SOURCE,
+            "fetched_at": datetime.now(timezone.utc).isoformat(),
+            "is_estimate": False,
+            "is_stale": False,
+        },
+    }
 
 
 @router.get("/{medication_id}/availability")
 async def medication_availability(
     medication_id: str,
     catmat_code: str,
-    lat: float,
-    lng: float,
-    radius_km: float = 10,
+    lat: float | None = Query(None, ge=-90, le=90),
+    lng: float | None = Query(None, ge=-180, le=180),
+    city_ibge: str | None = Query(None, min_length=7, max_length=7, pattern=r"^\d{7}$"),
+    radius_km: float = Query(10, gt=0, le=100),
 ):
     endpoint = f"/medications/{medication_id}/availability"
-    if not -90 <= lat <= 90 or not -180 <= lng <= 180:
-        return api_error(422, "VALIDATION_ERROR", "Coordenadas GPS inválidas.", endpoint)
-    if not 0 < radius_km <= 100:
-        return api_error(422, "VALIDATION_ERROR", "O raio deve ser maior que 0 e até 100 km.", endpoint)
+    if (lat is None) != (lng is None):
+        return api_error(422, "VALIDATION_ERROR", "Informe latitude e longitude juntas.", endpoint)
+    if lat is None and city_ibge is None:
+        return api_error(
+            422,
+            "VALIDATION_ERROR",
+            "Informe latitude e longitude ou o código IBGE do município.",
+            endpoint,
+        )
 
     try:
-        city = await municipio_por_coordenadas(lat, lng)
+        if lat is not None and lng is not None:
+            city = await municipio_por_coordenadas(lat, lng)
+        else:
+            assert city_ibge is not None
+            async with IbgeConector() as ibge:
+                city = await ibge.buscar_municipio(city_ibge)
         async with BnafarConector() as bnafar:
             stock_rows = await bnafar.buscar_estoque_municipal(catmat_code, city["ibge_code"])
     except httpx.HTTPError as exc:
@@ -121,8 +177,12 @@ async def medication_availability(
         if not cnes_code.isdigit() or int(cnes_code) <= 0 or row_lat is None or row_lng is None:
             unlocated_lots += 1
             continue
-        distance = distancia_metros(lat, lng, row_lat, row_lng)
-        if distance > radius_km * 1000:
+        distance = (
+            distancia_metros(lat, lng, row_lat, row_lng)
+            if lat is not None and lng is not None
+            else None
+        )
+        if distance is not None and distance > radius_km * 1000:
             continue
 
         item = grouped.setdefault(
@@ -135,19 +195,23 @@ async def medication_availability(
                 "uf": row.get("uf") or city["uf"],
                 "lat": row_lat,
                 "lng": row_lng,
-                "distance_m": distance,
                 "quantity": 0.0,
                 "stock_position_date": stock_date.isoformat(),
                 "expires_on": expiry_date.isoformat(),
                 "product_name": row.get("descricao_produto"),
+                **({"distance_m": distance} if distance is not None else {}),
             },
         )
         item["quantity"] += quantity
-        item["distance_m"] = min(item["distance_m"], distance)
+        if distance is not None:
+            item["distance_m"] = min(item["distance_m"], distance)
         item["stock_position_date"] = max(item["stock_position_date"], stock_date.isoformat())
         item["expires_on"] = min(item["expires_on"], expiry_date.isoformat())
 
-    items = sorted(grouped.values(), key=lambda item: item["distance_m"])
+    items = sorted(
+        grouped.values(),
+        key=lambda item: item.get("distance_m", float("inf")),
+    )
     if items:
         status = "available"
         message = "Estoque reportado pelo BNAFAR-Hórus; confirme a disponibilidade diretamente com a unidade."
@@ -181,7 +245,29 @@ async def medication_availability(
 
 @router.get("/{medication_id}")
 async def get_medication_detail(medication_id: str):
-    return source_unavailable(
-        f"/medications/{medication_id}",
-        "Não há uma API pública operacional integrada para bula e detalhes de medicamentos.",
-    )
+    endpoint = f"/medications/{medication_id}"
+    try:
+        medication = await buscar_medicamento(medication_id)
+    except httpx.HTTPError as exc:
+        logger.warning("Falha ao carregar medicamento %s na ANVISA: %s", medication_id, exc)
+        return api_error(
+            502,
+            "UPSTREAM_UNAVAILABLE",
+            "Não foi possível consultar os detalhes do medicamento na ANVISA.",
+            endpoint,
+        )
+    if medication is None:
+        return api_error(404, "NOT_FOUND", "Medicamento não encontrado no catálogo da ANVISA.", endpoint)
+
+    return {
+        key: value
+        for key, value in medication.items()
+        if key not in {"synonyms", "regulatory_status", "registration_number", "updated_at"}
+    } | {
+        "meta": {
+            "source": ANVISA_SOURCE,
+            "fetched_at": datetime.now(timezone.utc).isoformat(),
+            "is_estimate": False,
+            "is_stale": False,
+        }
+    }

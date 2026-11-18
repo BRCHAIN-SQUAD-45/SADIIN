@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 from datetime import datetime, timezone
@@ -8,6 +9,11 @@ from fastapi.responses import JSONResponse
 
 from app.api.responses import api_error, source_unavailable
 from app.integrations.cnes import CnesConector
+from app.integrations.cnes_resources import (
+    buscar_producao_cnes,
+    buscar_recurso_cnes,
+    metadados_cnes_recursos,
+)
 from app.integrations.demas import buscar_servicos_cnes
 from app.integrations.geocoding import municipio_por_coordenadas
 from app.integrations.ibge import IbgeConector
@@ -192,7 +198,38 @@ def _unavailable(endpoint: str, message: str) -> JSONResponse:
 
 @router.get("/{cnes}/metrics")
 async def get_unit_metrics(cnes: str):
-    return _unavailable(f"/ubs/{cnes}/metrics", "O CNES aberto não publica indicadores de movimento ou tempo de espera por unidade.")
+    try:
+        production = await buscar_producao_cnes(cnes)
+    except (httpx.HTTPError, ValueError) as exc:
+        logger.warning("Falha ao consultar produção da unidade %s: %s", cnes, exc)
+        return api_error(
+            502,
+            "UPSTREAM_UNAVAILABLE",
+            "Não foi possível consultar a produção ambulatorial e hospitalar da unidade.",
+            f"/ubs/{cnes}/metrics",
+        )
+
+    total = sum(int(float(row.get("qt_procedimento") or 0)) for row in production)
+    by_competence: dict[int, int] = {}
+    for row in production:
+        competence = row.get("_competence")
+        if isinstance(competence, int):
+            by_competence[competence] = by_competence.get(competence, 0) + int(
+                float(row.get("qt_procedimento") or 0)
+            )
+    current = max(by_competence.values(), default=0)
+    previous = sorted(by_competence.values())[-2] if len(by_competence) > 1 else current
+    delta = ((current - previous) / previous * 100) if previous else 0
+    return {
+        "attendances_month": current,
+        "attendances_delta_pct": round(delta, 1),
+        "avg_wait_minutes": 0,
+        "movement_level": "alto" if current >= 1000 else "moderado" if current >= 300 else "baixo",
+        "capacity_pct": 0,
+        "best_time_hint": "A produção oficial não informa o melhor horário de atendimento.",
+        "registered_coverage": 0,
+        "meta": metadados_cnes_recursos(),
+    }
 
 
 @router.get("/{cnes}/services")
@@ -213,12 +250,95 @@ async def get_unit_services(cnes: str):
 
 @router.get("/{cnes}/staff")
 async def get_unit_staff(cnes: str):
-    return _unavailable(f"/ubs/{cnes}/staff", "A API CNES consultada não publica a composição detalhada da equipe desta unidade.")
+    try:
+        professionals = await buscar_recurso_cnes(cnes, "professionals")
+    except (httpx.HTTPError, ValueError) as exc:
+        logger.warning("Falha ao consultar profissionais da unidade %s: %s", cnes, exc)
+        return api_error(
+            502,
+            "UPSTREAM_UNAVAILABLE",
+            "Não foi possível consultar os profissionais cadastrados no CNES.",
+            f"/ubs/{cnes}/staff",
+        )
+    active = [
+        row
+        for row in professionals
+        if str(row.get("st_atende_sus", "")).upper() == "SIM"
+    ]
+    teams = {str(row.get("co_ine")) for row in active if row.get("co_ine") not in (None, "-")}
+    return {
+        "professionals": len(active),
+        "rooms": None,
+        "esf_teams": len(teams),
+        "reference_date": str(max((row.get("nu_comp", 0) for row in active), default="")),
+        "meta": metadados_cnes_recursos(),
+    }
 
 
 @router.get("/{cnes}/attendance-history")
 async def get_unit_attendance_history(cnes: str, days: int = Query(7, ge=1, le=90)):
-    return _unavailable(
-        f"/ubs/{cnes}/attendance-history",
-        "Não há endpoint aberto de atendimentos diários por unidade para montar este histórico.",
-    )
+    try:
+        production = await buscar_producao_cnes(cnes)
+    except (httpx.HTTPError, ValueError) as exc:
+        logger.warning("Falha ao consultar histórico da unidade %s: %s", cnes, exc)
+        return api_error(
+            502,
+            "UPSTREAM_UNAVAILABLE",
+            "Não foi possível consultar o histórico de produção da unidade.",
+            f"/ubs/{cnes}/attendance-history",
+        )
+
+    totals: dict[int, int] = {}
+    for row in production:
+        competence = row.get("_competence")
+        if isinstance(competence, int):
+            totals[competence] = totals.get(competence, 0) + int(float(row.get("qt_procedimento") or 0))
+    selected = sorted(totals.items())[-min(days, len(totals)) :]
+    history = [
+        {
+            "date": f"{competence // 100:04d}-{competence % 100:02d}-01",
+            "weekday_label": (
+                f"{(
+                    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+                    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+                )[competence % 100 - 1]}/{competence // 100}"
+            ),
+            "attendances": total,
+        }
+        for competence, total in selected
+    ]
+    total = sum(item["attendances"] for item in history)
+    return {
+        "days": history,
+        "total": total,
+        "daily_average": total / len(history) if history else 0,
+        "meta": metadados_cnes_recursos(),
+    }
+
+
+@router.get("/{cnes}/resources")
+async def get_unit_resources(cnes: str):
+    try:
+        establishments, services, professionals, equipment, beds = await asyncio.gather(
+            buscar_recurso_cnes(cnes, "establishments"),
+            buscar_recurso_cnes(cnes, "services"),
+            buscar_recurso_cnes(cnes, "professionals"),
+            buscar_recurso_cnes(cnes, "equipment"),
+            buscar_recurso_cnes(cnes, "beds"),
+        )
+    except (httpx.HTTPError, ValueError) as exc:
+        logger.warning("Falha ao consultar recursos da unidade %s: %s", cnes, exc)
+        return api_error(
+            502,
+            "UPSTREAM_UNAVAILABLE",
+            "Não foi possível consultar os recursos cadastrados no CNES.",
+            f"/ubs/{cnes}/resources",
+        )
+    return {
+        "establishments": establishments,
+        "services": services,
+        "professionals": professionals,
+        "equipment": equipment,
+        "beds": beds,
+        "meta": metadados_cnes_recursos(),
+    }

@@ -105,9 +105,7 @@ class CnesConector:
         retry=retry_if_exception(_is_retriable_error),
     )
     async def buscar_unidade(self, cnes: str) -> dict:
-        code = cnes.strip()
-        if not code.isdigit():
-            raise ValueError("O código CNES deve conter apenas dígitos.")
+        code = self._normalizar_cnes(cnes)
         response = await self._http_client().get(f"/cnes/estabelecimentos/{code}")
         response.raise_for_status()
         payload = response.json()
@@ -126,9 +124,16 @@ class CnesConector:
         ]
 
     @staticmethod
+    def _normalizar_cnes(cnes: str) -> str:
+        code = str(cnes).strip()
+        if not code.isdigit() or len(code) > 7:
+            raise ValueError("O código CNES deve conter até 7 dígitos.")
+        return code.zfill(7)
+
+    @staticmethod
     def _normalizar_estabelecimento(estabelecimento: dict) -> dict:
         return {
-            "cnes": str(estabelecimento.get("codigo_cnes") or ""),
+            "cnes": CnesConector._normalizar_cnes(str(estabelecimento.get("codigo_cnes") or "")),
             "razao_social": estabelecimento.get("nome_razao_social"),
             "nome_fantasia": estabelecimento.get("nome_fantasia"),
             "tipo_gestao": estabelecimento.get("tipo_gestao"),
