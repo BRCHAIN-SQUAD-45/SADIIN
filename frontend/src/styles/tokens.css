@@ -7,7 +7,7 @@
  * ========================================================================== */
 
 :root {
-  --font-scale: 1;
+  --font-scale: 1.3;
 
   /* Escala tipográfica exata do protótipo */
   --fs-6: calc(6px * var(--font-scale));
@@ -50,10 +50,31 @@
   --text-muted: #718783;
 }
 
-/* Modo Acessibilidade (alto contraste + fonte 125%) */
+/* Escala progressiva de fonte na barra de acessibilidade (A = 1.3 padrão / A+ = 1.45 / A++ = 1.6) */
+html[data-font-scale='normal'] {
+  --font-scale: 1.3;
+}
+
+html[data-font-scale='large'] {
+  --font-scale: 1.45;
+}
+
+html[data-font-scale='xlarge'] {
+  --font-scale: 1.6;
+}
+
+/* Modo Acessibilidade (alto contraste + fonte ampliada) */
 html[data-a11y='true'] {
-  --font-scale: 1.25;
+  --font-scale: 1.45;
   --text-muted: #2d4c47;
+}
+
+html[data-a11y='true'][data-font-scale='large'] {
+  --font-scale: 1.52;
+}
+
+html[data-a11y='true'][data-font-scale='xlarge'] {
+  --font-scale: 1.65;
 }
 
 html[data-a11y='true'] .gov-bar,

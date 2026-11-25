@@ -20,7 +20,9 @@ export function Layout() {
     <div className="portal">
       <GovBar />
       <Header />
-      <Outlet />
+      <div id="conteudo-principal" tabIndex={-1}>
+        <Outlet />
+      </div>
       <Footer />
       <ScrollRestoration />
     </div>

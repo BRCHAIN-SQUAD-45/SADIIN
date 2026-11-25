@@ -43,9 +43,10 @@ export function Header() {
     };
   }, [pickerOpen]);
 
-  const handleCitySelect = (ibgeCode: string) => {
+  const applyCity = (ibgeCode: string) => {
     const city = citiesQuery.data?.find((c) => c.ibge_code === ibgeCode);
     if (!city) return;
+    const changedCity = city.ibge_code !== location.ibgeCode;
     selectLocation({
       uf: city.uf,
       cityName: city.name,
@@ -54,6 +55,21 @@ export function Header() {
       lng: city.lng ?? null,
       label: `${city.name}, ${city.uf}`,
     });
+    setPickerOpen(false);
+    if (changedCity && routeLocation.pathname.startsWith('/unidades/')) {
+      navigate('/unidades', { replace: true });
+    }
+  };
+
+  const handleCitySelect = (ibgeCode: string) => {
+    applyCity(ibgeCode);
+  };
+
+  const handleCloseOrApplyPicker = () => {
+    if (draftUf !== location.uf && citiesQuery.data && citiesQuery.data.length > 0) {
+      applyCity(citiesQuery.data[0]!.ibge_code);
+      return;
+    }
     setPickerOpen(false);
   };
 
@@ -180,7 +196,7 @@ export function Header() {
               <button type="button" onClick={handleUseCurrentLocation}>
                 Usar GPS
               </button>
-              <button type="button" className="primary" onClick={() => setPickerOpen(false)}>
+              <button type="button" className="primary" onClick={handleCloseOrApplyPicker}>
                 Fechar
               </button>
             </div>

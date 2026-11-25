@@ -3,6 +3,8 @@ import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { UnitAttendanceChart } from '../components/charts/UnitAttendanceChart';
 import { Icon, isIconName } from '../components/ui/Icon';
 import { EmptyState, ErrorState, ProvenanceTags, Skeleton } from '../components/ui/States';
+import { getEnv } from '../config/env';
+import { useLocationSelection } from '../features/location/useLocation';
 import {
   useUnitAttendanceHistory,
   useUnitDetail,
@@ -14,6 +16,7 @@ import {
 import {
   buildRouteUrl,
   buildTelHref,
+  formatDisplayName,
   formatInt,
   formatMovementLabel,
   formatOpenStatus,
@@ -27,13 +30,20 @@ const SERVICE_CATEGORIES = ['Todos', 'Consultas', 'Prevenção', 'Procedimentos'
 export function UnitDetailPage() {
   const { cnes } = useParams<{ cnes?: string }>();
   const navigate = useNavigate();
+  const { isMock } = getEnv();
+  const { location } = useLocationSelection();
   const [selectedServiceCategory, setSelectedServiceCategory] = useState<string>('Todos');
   const [hoveredDay, setHoveredDay] = useState<string | null>(null);
 
-  const unitsListQuery = useUnitsList();
+  const unitsListQuery = useUnitsList({ city_ibge: location.ibgeCode });
   const units = unitsListQuery.data?.items ?? [];
 
-  // Rota `/unidades` sem `:cnes` redireciona para a primeira unidade (Q3).
+  // Em modo API real, nunca permanecer no CNES fictício 9990001 quando já há unidades reais carregadas.
+  if (!isMock && cnes === '9990001' && units[0] && units[0].cnes_code !== '9990001') {
+    return <Navigate to={`/unidades/${units[0].cnes_code}`} replace />;
+  }
+
+  // Rota `/unidades` sem `:cnes` redireciona para a primeira unidade do município selecionado (Q3 / Card 4).
   if (!cnes) {
     if (unitsListQuery.isLoading) {
       return (
@@ -44,8 +54,30 @@ export function UnitDetailPage() {
         </div>
       );
     }
-    const targetCnes = units[0]?.cnes_code ?? '9990001';
-    return <Navigate to={`/unidades/${targetCnes}`} replace />;
+    if (units[0]) {
+      return <Navigate to={`/unidades/${units[0].cnes_code}`} replace />;
+    }
+    if (isMock) {
+      return <Navigate to="/unidades/9990001" replace />;
+    }
+    return (
+      <div className="units-page">
+        <div className="unit-content section-width" style={{ paddingTop: 40 }}>
+          {unitsListQuery.isError ? (
+            <ErrorState
+              error={unitsListQuery.error}
+              onRetry={() => void unitsListQuery.refetch()}
+              fallbackTitle={`Não foi possível carregar as unidades de ${location.cityName} (${location.uf})`}
+            />
+          ) : (
+            <EmptyState
+              title={`Nenhuma unidade encontrada em ${location.cityName} (${location.uf})`}
+              description="Selecione outro município ou estado no menu de localização superior."
+            />
+          )}
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -126,7 +158,7 @@ function UnitDetailContent({
               >
                 {selectorOptions.map((u) => (
                   <option key={u.cnes_code} value={u.cnes_code}>
-                    {u.name}
+                    {formatDisplayName(u.name)}
                   </option>
                 ))}
               </select>
@@ -154,9 +186,9 @@ function UnitDetailContent({
               <span className={formatOpenStatus(unit.is_open).badgeClass}>
                 <i /> {formatOpenStatus(unit.is_open).label}
               </span>
-              <h2>{unit.name}</h2>
+              <h2>{formatDisplayName(unit.name)}</h2>
               <p>
-                <Icon name="pin" size={15} /> {unit.address}, {unit.city}
+                <Icon name="pin" size={15} /> {formatDisplayName(unit.address)}, {unit.city}
               </p>
             </div>
             <div className="unit-actions">
@@ -436,7 +468,7 @@ function UnitDetailContent({
                     <small>profissionais</small>
                   </span>
                   <span>
-                    <strong>{formatInt(staff.rooms)}</strong>
+                    <strong>{staff.rooms !== null ? formatInt(staff.rooms) : '—'}</strong>
                     <small>consultórios</small>
                   </span>
                   <span>

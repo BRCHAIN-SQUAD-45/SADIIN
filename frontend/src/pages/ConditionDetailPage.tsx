@@ -136,6 +136,42 @@ export function ConditionDetailPage() {
               </article>
             </section>
 
+            <section
+              className="triage-guide-section"
+              aria-label="Níveis de orientação ao cidadão (Referência SNS 24 / SUS)"
+            >
+              <div className="triage-guide-head">
+                <span>ORIENTAÇÃO AO CIDADÃO • MODELO SNS 24 / SUS</span>
+                <h2>Qual serviço de saúde devo procurar?</h2>
+              </div>
+              <div className="triage-levels-grid">
+                <article className="triage-level-card level-selfcare">
+                  <span className="triage-level-badge">1. Autocuidado e Prevenção</span>
+                  <strong>Sintomas leves ou iniciais</strong>
+                  <p>
+                    Mantenha hidratação, repouso e siga as medidas de prevenção oficiais sem se
+                    automedicar.
+                  </p>
+                </article>
+                <article className="triage-level-card level-primary">
+                  <span className="triage-level-badge">2. Atenção Primária (UBS / 136)</span>
+                  <strong>Sintomas persistentes</strong>
+                  <p>
+                    Procure a Unidade Básica de Saúde mais próxima ou ligue para o{' '}
+                    <strong>Disque Saúde 136</strong> para orientação.
+                  </p>
+                </article>
+                <article className="triage-level-card level-emergency">
+                  <span className="triage-level-badge">3. Urgência e Emergência (192)</span>
+                  <strong>Sinais de alerta ou gravidade</strong>
+                  <p>
+                    Em caso de falta de ar, febre alta contínua, dor intensa ou confusão, procure
+                    uma UPA/Pronto-Socorro ou ligue <strong>192 (SAMU)</strong>.
+                  </p>
+                </article>
+              </div>
+            </section>
+
             <div className="medical-warning">
               <Icon name="info" />
               <p>

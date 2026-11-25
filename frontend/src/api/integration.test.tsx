@@ -1,10 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { ApiError, codeFromStatus } from './client';
-import { CityListSchema, PortalMetaSchema, UnitDetailSchema, UnitPageSchema } from './schemas';
-import { mapUnitSummaryToPinView } from './mappers';
+import {
+  CityListSchema,
+  PortalMetaSchema,
+  UnitDetailSchema,
+  UnitPageSchema,
+  UnitStaffSchema,
+} from './schemas';
+import { mapAttendanceHistoryToChartView, mapUnitSummaryToPinView } from './mappers';
 import { ErrorState } from '../components/ui/States';
-import { formatOpenStatus, formatUnitUpdatedLabel } from '../utils/format';
+import { formatDisplayName, formatOpenStatus, formatUnitUpdatedLabel } from '../utils/format';
 
 /**
  * Integração front ↔ back (FastAPI): as amostras abaixo foram copiadas de respostas
@@ -154,5 +160,49 @@ describe('Status de funcionamento e datas', () => {
     const now = new Date('2026-11-11T12:00:00Z');
     expect(formatUnitUpdatedLabel('2026-11-11T08:42:00Z', now)).toBe('Hoje, às 08:42');
     expect(formatUnitUpdatedLabel('2026-02-27T00:00:00+00:00', now)).toBe('27/02/2026');
+  });
+
+  it('aceita /ubs/{cnes}/staff com rooms = null vindo do CNES real (Card 4)', () => {
+    const realStaff = {
+      professionals: 18,
+      rooms: null,
+      esf_teams: 2,
+      reference_date: '202602',
+      meta: {
+        source: 'CNES / SIA / SIH - Ministério da Saúde',
+        fetched_at: '2026-11-18T12:00:00+00:00',
+        is_estimate: false,
+        is_stale: false,
+      },
+    };
+    expect(UnitStaffSchema.safeParse(realStaff).success).toBe(true);
+  });
+
+  it('normaliza nomes em CAIXA ALTA do CNES/ANVISA preservando siglas do SUS (Card 6)', () => {
+    expect(formatDisplayName('AMA UBS JOSE BONIFACIO I')).toBe('AMA UBS Jose Bonifacio I');
+    expect(formatDisplayName('SERVICO DE ATENCAO DOMICILIAR CAMPO LIMPO')).toBe(
+      'Servico de Atencao Domiciliar Campo Limpo',
+    );
+    expect(formatDisplayName('ACEBROFILINA')).toBe('Acebrofilina');
+    expect(formatDisplayName('UBS República')).toBe('UBS República');
+  });
+
+  it('escala proporcionalmente barras de atendimento quando produção mensal ultrapassa 100 (Card 4)', () => {
+    const chart = mapAttendanceHistoryToChartView({
+      days: [
+        { date: '2026-01-01', weekday_label: 'Janeiro/2026', attendances: 1750 },
+        { date: '2026-02-01', weekday_label: 'Fevereiro/2026', attendances: 3500 },
+      ],
+      total: 5250,
+      daily_average: 2625,
+      meta: {
+        source: 'CNES / SIA / SIH - Ministério da Saúde',
+        fetched_at: '2026-11-18T12:00:00+00:00',
+        is_estimate: false,
+        is_stale: false,
+      },
+    });
+    expect(chart.bars[0]?.heightPct).toBe(50);
+    expect(chart.bars[1]?.heightPct).toBe(100);
   });
 });

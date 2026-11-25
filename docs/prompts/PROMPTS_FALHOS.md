@@ -46,6 +46,26 @@ Este documento registra os casos em que prompts de desenvolvimento geraram probl
 
 ---
 
+### FE-F05 — Cabeçalho e Localização (`FE06 v1.1`): Quebra de linha e deslocamento do seletor no modo Alto Contraste + `A++`
+
+- **Data:** 24/11/2026
+- **Prompt Relacionado:** [`FE06-filtro-ubs-acessibilidade-ux-portugal.md`](./FE06-filtro-ubs-acessibilidade-ux-portugal.md)
+- **O que pedimos:** Elevar a escala padrão do portal para `1.3` (`A`), `1.45` (`A+`) e `1.6` (`A++`), aplicando `flex-wrap: wrap` no `.site-header` para acomodar as fontes ampliadas.
+- **O que veio (Problema):** Ao ativar simultaneamente **Acessibilidade (Alto Contraste)** e **`A++`**, os links de navegação ultrapassaram a largura da linha e empurraram o botão `"São Paulo, SP"` para uma segunda linha colada no canto esquerdo.
+- **O que mudamos (`FE06 v1.2`):** Travamos `.site-header` e `nav` em `flex-wrap: nowrap` com teto de fonte na barra superior (`min(var(--fs-11), 16px)`) e `white-space: nowrap; flex-shrink: 0` no `.location-button`, mantendo o botão sempre alinhado à direita.
+
+---
+
+### FE-F06 — Espaçamento em Cards (`FE06 v1.2`): Referência a tokens de espaçamento inexistentes em `tokens.css`
+
+- **Data:** 24/11/2026
+- **Prompt Relacionado:** [`FE06-filtro-ubs-acessibilidade-ux-portugal.md`](./FE06-filtro-ubs-acessibilidade-ux-portugal.md)
+- **O que pedimos:** Aumentar o espaçamento vertical entre as badges e o link `"Ver informações completas"` usando um token de espaçamento existente em `tokens.css`.
+- **O que veio (Problema):** Ao auditar `src/styles/tokens.css`, constatamos que o arquivo contém apenas tokens tipográficos (`--fs-*`) e de cores, não existindo tokens de espaçamento (`--space-*`).
+- **O que mudamos (`FE06 v1.2`):** Validamos a ausência dos tokens antes de editar e aplicamos o valor direto em pixels (`margin-bottom: 14px;` em `.card-alert-tags`), mantendo o padrão numérico já usado em `portal.css`.
+
+---
+
 ## Falhas Registradas na Integração Front ↔ Back (Responsável: Nícolas)
 
 ### INT-F01 — `contract:check` não testava o back-end real (`INT01 v1.0`)
