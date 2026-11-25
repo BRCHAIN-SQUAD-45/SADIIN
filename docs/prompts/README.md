@@ -13,5 +13,6 @@ Esta pasta armazena os prompts utilizados pelo **Squad 45 (SADIIN / BRchain)** s
 | **FE05** | [`FE05-mappers-mapa-leaflet-contrato.md`](./FE05-mappers-mapa-leaflet-contrato.md) | Fases 4, 5 e 6 — Camada de mappers, Mapa interativo Leaflet (`US-04.1`) e Contrato da API | `v1.0` |
 | **INT01** | [`INT01-integracao-front-back.md`](./INT01-integracao-front-back.md) | Integração Front ↔ Back: verificação ao vivo das rotas, ajustes de contrato e tratamento de `501` | `v1.0` |
 | **INT02** | [`INT02-desempenho-ubs-e-noticias.md`](./INT02-desempenho-ubs-e-noticias.md) | Issues #62 e #57: ficha da UBS de ~30 s para < 1 s com cache e notícias oficiais do gov.br na Home | `v1.0` |
+| **INT03** | [`INT03-doencas-e-busca-global.md`](./INT03-doencas-e-busca-global.md) | Issues #43, #46 e #33: catálogo de doenças (Saúde de A a Z + CID-10) e busca global nos três catálogos | `v1.0` |
 
-> **Integração:** prompts `INT01` e `INT02` (Nícolas). **Back-end e IA:** Os prompts das integrações Python/FastAPI e RAG serão adicionados nas respectivas branches pelos responsáveis de Back-end e IA.
+> **Integração:** prompts `INT01`, `INT02` e `INT03` (Nícolas). **Back-end e IA:** Os prompts das integrações Python/FastAPI e RAG serão adicionados nas respectivas branches pelos responsáveis de Back-end e IA.

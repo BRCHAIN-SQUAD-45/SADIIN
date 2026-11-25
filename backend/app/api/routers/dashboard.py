@@ -1,5 +1,7 @@
+import asyncio
 import logging
 import os
+from datetime import datetime, timezone
 from typing import Literal
 from xml.etree import ElementTree
 
@@ -7,6 +9,8 @@ import httpx
 from fastapi import APIRouter, Query
 
 from app.api.responses import api_error, source_unavailable
+from app.integrations import doencas
+from app.integrations.anvisa import listar_medicamentos
 from app.integrations.geocoding import municipio_por_coordenadas
 from app.integrations.noticias import noticias_para_home
 from app.integrations.units import (
@@ -26,53 +30,27 @@ def _normalize(value: str) -> str:
     return " ".join(value.casefold().split())
 
 
-@router.get("/search")
-async def global_search(
-    q: str = Query(..., min_length=2),
-    search_type: Literal["all", "medications", "conditions", "units"] = Query("all", alias="type"),
-    city_ibge: str = Query(DEFAULT_CITY_IBGE, min_length=7, max_length=7, pattern=r"^\d{7}$"),
-    lat: float | None = Query(None, ge=-90, le=90),
-    lng: float | None = Query(None, ge=-180, le=180),
-):
-    if search_type in {"medications", "conditions"}:
-        return source_unavailable(
-            "/search",
-            "A busca de medicamentos e condições não possui fonte pública operacional integrada.",
-        )
+MAX_RESULTADOS_POR_TIPO = 5
+MEDICATION_FIELDS = (
+    "id", "name", "subtitle", "tag", "category_id", "requires_prescription", "adult_use", "leaflet_url",
+)
 
-    if (lat is None) != (lng is None):
-        return api_error(422, "VALIDATION_ERROR", "Informe latitude e longitude juntas.", "/search")
-    if lat is not None and lng is not None:
-        try:
-            city_ibge = (await municipio_por_coordenadas(lat, lng))["ibge_code"]
-        except httpx.HTTPError as exc:
-            logger.warning("Falha na geocodificação GPS da busca: %s", exc)
-            return api_error(
-                502,
-                "UPSTREAM_UNAVAILABLE",
-                "Não foi possível identificar o município da localização atual.",
-                "/search",
-            )
-        except ValueError as exc:
-            logger.info("Município não resolvido na busca GPS: %s", exc)
-            return api_error(
-                422,
-                "LOCATION_NOT_RESOLVED",
-                "Não foi possível associar sua localização a um município do IBGE.",
-                "/search",
-            )
 
-    try:
-        city, units = await buscar_todas_unidades_municipais(city_ibge)
-    except (httpx.HTTPError, ValueError) as exc:
-        logger.warning("Falha na busca CNES: %s", exc)
-        return api_error(
-            502,
-            "UPSTREAM_UNAVAILABLE",
-            "Não foi possível consultar a busca de unidades no CNES.",
-            "/search",
-        )
+async def _buscar_medicamentos(q: str) -> list[dict]:
+    registros = await listar_medicamentos(q, None)
+    return [{k: r[k] for k in MEDICATION_FIELDS if k in r} for r in registros[:MAX_RESULTADOS_POR_TIPO]]
 
+
+def _buscar_doencas(q: str) -> list[dict]:
+    # Sem rede: só o catálogo + CID-10. Sintomas ficam para a página da doença.
+    return [
+        {k: v for k, v in d.items() if not k.startswith("_")}
+        for d in doencas.filtrar(q)[:MAX_RESULTADOS_POR_TIPO]
+    ]
+
+
+async def _buscar_unidades(q: str, city_ibge: str) -> list[dict]:
+    city, units = await buscar_todas_unidades_municipais(city_ibge)
     needle = _normalize(q)
     matches = [
         unit
@@ -81,21 +59,119 @@ async def global_search(
         or needle in _normalize(str(unit.get("razao_social") or ""))
         or needle in _normalize(" ".join(str(unit.get(key) or "") for key in ("endereco", "numero", "bairro")))
     ]
-    summaries = [summary for unit in matches if (summary := unidade_resumo(unit, city)) is not None]
-    if search_type == "all" and not summaries:
-        return source_unavailable(
+    resumos = [s for unit in matches if (s := unidade_resumo(unit, city)) is not None]
+    return resumos[:MAX_RESULTADOS_POR_TIPO]
+
+
+def _chave(texto: str) -> str:
+    """Comparação sem acento e sem diferença de maiúsculas ("pressao alta" == "Pressão alta")."""
+    return _normalize(doencas._sem_acento(texto))
+
+
+def _termo_reconhecido(q: str, medicamentos: list[dict], condicoes: list[dict]) -> tuple[str, str | None]:
+    """Intenção e termo reconhecido: nome exato de doença (ou sinônimo) vence; depois medicamento."""
+    alvo = _chave(q)
+    for doenca in condicoes:
+        topico = (doencas.por_id(doenca["id"]) or {}).get("_topico")
+        nomes = [doenca["popular_name"], doenca["cid10_code"], *(topico.sinonimos if topico else ())]
+        if any(alvo == _chave(nome) for nome in nomes):
+            return "condition", doenca["popular_name"]
+    for med in medicamentos:
+        if alvo == _chave(med["name"]):
+            return "medication", med["name"]
+    return "unknown", None
+
+
+@router.get("/search")
+async def global_search(
+    q: str = Query(..., min_length=2, max_length=100),
+    search_type: Literal["all", "medications", "conditions", "units"] = Query("all", alias="type"),
+    city_ibge: str = Query(DEFAULT_CITY_IBGE, min_length=7, max_length=7, pattern=r"^\d{7}$"),
+    lat: float | None = Query(None, ge=-90, le=90),
+    lng: float | None = Query(None, ge=-180, le=180),
+):
+    """Busca global (issue #33): medicamentos (ANVISA), doenças (Saúde de A a Z + CID-10) e UBS (CNES).
+
+    As três fontes são consultadas em paralelo. Em `type=all`, se uma fonte falhar, as outras
+    respondem mesmo assim; com um tipo só, a falha vira 502. A busca é textual (não é IA): por
+    isso `fallback` é sempre `null` e `confidence` indica só se houve resultado.
+    """
+    if (lat is None) != (lng is None):
+        return api_error(422, "VALIDATION_ERROR", "Informe latitude e longitude juntas.", "/search")
+
+    quer = {
+        "medications": search_type in ("all", "medications"),
+        "conditions": search_type in ("all", "conditions"),
+        "units": search_type in ("all", "units"),
+    }
+
+    async def unidades() -> list[dict]:
+        cidade = city_ibge
+        if lat is not None and lng is not None:
+            cidade = (await municipio_por_coordenadas(lat, lng))["ibge_code"]
+        return await _buscar_unidades(q, cidade)
+
+    async def vazio() -> list[dict]:
+        return []
+
+    async def doencas_async() -> list[dict]:
+        return _buscar_doencas(q)
+
+    medicamentos, condicoes, unidades_encontradas = await asyncio.gather(
+        _buscar_medicamentos(q) if quer["medications"] else vazio(),
+        doencas_async() if quer["conditions"] else vazio(),
+        unidades() if quer["units"] else vazio(),
+        return_exceptions=True,
+    )
+
+    falhas = []
+    resultados = {}
+    for nome, valor in (("medications", medicamentos), ("conditions", condicoes), ("units", unidades_encontradas)):
+        if isinstance(valor, BaseException):
+            if not isinstance(valor, (httpx.HTTPError, ValueError)):
+                raise valor
+            logger.warning("Busca global: fonte %s indisponível: %s", nome, valor)
+            falhas.append(nome)
+            resultados[nome] = []
+        else:
+            resultados[nome] = valor
+
+    if search_type != "all" and search_type in falhas:
+        return api_error(
+            502,
+            "UPSTREAM_UNAVAILABLE",
+            "Não foi possível consultar esta fonte agora. Tente novamente em instantes.",
             "/search",
-            "A busca clínica não está conectada; é possível pesquisar estabelecimentos CNES por cidade.",
         )
 
-    return {
+    intent, termo = _termo_reconhecido(q, resultados["medications"], resultados["conditions"])
+    if intent == "unknown":
+        contagem = {
+            "medication": len(resultados["medications"]),
+            "condition": len(resultados["conditions"]),
+            "unit": len(resultados["units"]),
+        }
+        if any(contagem.values()):
+            intent = max(contagem, key=contagem.get)
+    total = sum(len(v) for v in resultados.values())
+
+    resposta = {
         "query": q,
-        "intent": "unit" if summaries else "unknown",
-        "confidence": 0.9 if summaries else 0,
+        "intent": intent,
+        "confidence": 1.0 if total else 0.0,
         "fallback": None,
-        "results": {"medications": [], "conditions": [], "units": summaries},
-        "meta": metadados_cnes(),
+        "results": resultados,
+        "meta": {
+            "source": "ANVISA / Ministério da Saúde (Saúde de A a Z, CID-10) / CNES",
+            "fetched_at": datetime.now(timezone.utc).isoformat(),
+            "is_estimate": False,
+            # Alguma fonte falhou e a resposta saiu só com as outras.
+            "is_stale": bool(falhas),
+        },
     }
+    if termo:
+        resposta["matched_term"] = termo
+    return resposta
 
 
 @router.get("/dashboard/regional")

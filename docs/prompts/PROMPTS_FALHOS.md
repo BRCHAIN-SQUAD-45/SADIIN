@@ -108,4 +108,34 @@ Este documento registra os casos em que prompts de desenvolvimento geraram probl
 
 ---
 
+### INT-F07 — Leitor das páginas do gov.br pegava conteúdo de outro assunto (`INT03 v1.0`)
+
+- **Data:** 25/11/2026
+- **Prompt Relacionado:** [`INT03-doencas-e-busca-global.md`](./INT03-doencas-e-busca-global.md)
+- **O que pedimos:** Extrair sintomas, prevenção e tratamento das páginas do "Saúde de A a Z".
+- **O que veio (Problema):** A 1ª versão preferia sempre os itens de lista. Na covid-19, os "sintomas" viraram os **fatores de risco**; na hipertensão, o "tratamento" virou a **lista de documentos** da Farmácia Popular. A correção seguinte exagerou e apagou os sintomas certos da tuberculose (eram parágrafos curtos, não lista).
+- **O que mudamos:** Regras em camadas (lista só vale se introduzida pelo assunto; subtítulo curto só corta se for de outro assunto). Cada caso real virou um teste em `backend/tests/test_doencas.py`. Quando a página não separa bem, a seção vem vazia em vez de errada.
+
+---
+
+### INT-F08 — Caractere de controle no lugar de `\b` na expressão regular (`INT03 v1.0`)
+
+- **Data:** 25/11/2026
+- **Prompt Relacionado:** [`INT03-doencas-e-busca-global.md`](./INT03-doencas-e-busca-global.md)
+- **O que pedimos:** Filtrar chamadas de link ("Veja…", "Acesse…") com a regex `^(veja|acesse|...)\b`.
+- **O que veio (Problema):** O script que editou o arquivo gravou um caractere de controle (backspace, `\x08`) no lugar de `\b`. O código rodava sem erro, mas o filtro **não pegava nada**.
+- **O que mudamos:** Conferimos o padrão compilado (`repr`) e testamos `"veja quais"` (filtra) contra `"vejamos"` (não filtra). Ficou um teste para isso.
+
+---
+
+### INT-F09 — Logo genérico do gov.br virando foto da doença (`INT03 v1.0`)
+
+- **Data:** 25/11/2026
+- **Prompt Relacionado:** [`INT03-doencas-e-busca-global.md`](./INT03-doencas-e-busca-global.md)
+- **O que pedimos:** Usar a imagem `og:image` da página como foto do card.
+- **O que veio (Problema):** No portal, vários cards (Asma, Aspergilose…) mostraram o **logo "gov.br"**. Sem foto própria, a página manda `gov.br/saude/logo.png`.
+- **O que mudamos:** A foto só é aceita se estiver dentro da pasta do tópico (`/saude-de-a-a-z/`). Sem ela, o front usa a imagem neutra padrão.
+
+---
+
 > **Back-end e IA:** As falhas de prompts das camadas de Back-end e IA serão registradas pelos respectivos responsáveis em suas branches.

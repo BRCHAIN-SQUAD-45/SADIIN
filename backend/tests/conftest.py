@@ -15,7 +15,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from app.integrations import cnes_resources, noticias  # noqa: E402
+from app.integrations import cnes_resources, doencas, noticias  # noqa: E402
 from app.api.routers import ubs  # noqa: E402
 
 
@@ -28,6 +28,7 @@ def limpar_caches():
         noticias._feed_cache,
         noticias._image_cache,
         ubs._unit_detail_cache,
+        doencas._pagina_cache,
     ):
         cache.clear()
     noticias._last_good_feed = []
