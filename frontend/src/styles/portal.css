@@ -1080,6 +1080,15 @@ a {
   color: #a7c7c1;
   font-size: var(--fs-7);
 }
+/* Título da notícia leva à página oficial no gov.br. */
+.news-link {
+  color: inherit;
+  text-decoration: none;
+}
+.news-link:hover,
+.news-link:focus-visible {
+  text-decoration: underline;
+}
 .news-list {
   gap: 8px;
   display: grid;

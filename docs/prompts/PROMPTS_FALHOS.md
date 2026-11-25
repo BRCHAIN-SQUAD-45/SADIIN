@@ -78,4 +78,34 @@ Este documento registra os casos em que prompts de desenvolvimento geraram probl
 
 ---
 
+### INT-F04 — Plano da issue #62 esvaziaria a ficha da UBS (`INT02 v1.0`)
+
+- **Data:** 25/11/2026
+- **Prompt Relacionado:** [`INT02-desempenho-ubs-e-noticias.md`](./INT02-desempenho-ubs-e-noticias.md)
+- **O que pedimos:** Seguir a issue e reduzir a busca do SIA/SIH de 12 para 3–6 meses.
+- **O que veio (Problema):** Antes de mudar, uma sonda na API mostrou que os 5 meses mais recentes vêm **vazios**, porque o SIA/SIH é publicado com atraso. Com 3–6 meses a ficha ficaria quase sem dados.
+- **O que mudamos:** Mantivemos os 12 meses e trocamos o sequencial por paralelo. O ganho de tempo foi o mesmo, sem perder dados.
+
+---
+
+### INT-F05 — `--reload` do uvicorn travou e mediu o código antigo (`INT02 v1.0`)
+
+- **Data:** 25/11/2026
+- **Prompt Relacionado:** [`INT02-desempenho-ubs-e-noticias.md`](./INT02-desempenho-ubs-e-noticias.md)
+- **O que pedimos:** Medir de novo a ficha da UBS depois da otimização.
+- **O que veio (Problema):** O tempo **piorou** (37–43 s) e `reference_date` continuou no formato antigo. O `--reload` ficou parado em "Reloading..." esperando as requisições lentas terminarem, então o servidor ainda rodava o código antigo.
+- **O que mudamos:** Passamos a reiniciar o servidor manualmente após cada mudança e a conferir um campo novo na resposta antes de confiar na medição.
+
+---
+
+### INT-F06 — Categorias e filtro por UF das notícias com falsos positivos (`INT02 v1.0`)
+
+- **Data:** 25/11/2026
+- **Prompt Relacionado:** [`INT02-desempenho-ubs-e-noticias.md`](./INT02-desempenho-ubs-e-noticias.md)
+- **O que pedimos:** Classificar as notícias do gov.br nas categorias do protótipo e priorizar as do estado selecionado.
+- **O que veio (Problema):** (1) "vigilância" virava ALERTA DE SAÚDE, mas é o nome da Secretaria de Vigilância em Saúde e Ambiente, que marca até notícia de revista científica. (2) Comparar sem acento faria "Pará" casar com a preposição "para", presente em quase toda notícia. (3) "ubs" casaria dentro de "substituição".
+- **O que mudamos:** Tiramos "vigilância" dos termos de alerta, passamos a comparar o nome do estado **com** acento e a casar termos só no início de palavra. Cada caso virou um teste em `backend/tests/test_noticias.py`.
+
+---
+
 > **Back-end e IA:** As falhas de prompts das camadas de Back-end e IA serão registradas pelos respectivos responsáveis em suas branches.

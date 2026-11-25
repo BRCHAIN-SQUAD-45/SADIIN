@@ -30,5 +30,8 @@ Os números abaixo foram extraídos diretamente dos logs de execução (`input_t
 | Data | Prompt / Etapa | Escopo Entregue | Ferramenta / Plano | Contexto final da sessão (tokens) |
 |---|---|---|---|---:|
 | 10/11/2026 | [`INT01`](./prompts/INT01-integracao-front-back.md) | Verificação ao vivo das 21 rotas, ajustes de contrato, tratamento de 501, 11 testes novos, docs | Claude Code (Claude Opus 5.5), plano **Pro** (assinatura, sem cobrança por token) | ≈ 269.000 |
+| 25/11/2026 | [`INT02`](./prompts/INT02-desempenho-ubs-e-noticias.md) | #62 (cache e paralelismo da ficha da UBS, nomes legíveis) e #57 (notícias oficiais do gov.br), 26 testes `pytest`, workflow do back-end, docs | Claude Code (Claude Opus 5.5), plano **Pro** | ≈ 429.000 (≈ 160.000 a mais que no INT01, na mesma sessão) |
 
 > **Como ler este número:** o app do Claude Code informa o tamanho do contexto da sessão (≈ 269 mil tokens de 1 milhão, cerca de 27%), e não a soma de tokens de entrada e saída de cada chamada, como na tabela do Front-end. Por isso o valor não é diretamente comparável com a seção 1. No plano Pro o custo é a assinatura mensal: a sessão consumiu cerca de 14% do limite de 5 horas e 15% do limite semanal.
+
+> **INT02:** feito na mesma sessão do INT01, por isso o contexto acumula as duas tarefas. A parte do INT02 é a diferença, cerca de 160 mil tokens. Consumo do plano Pro: cerca de 22% do limite de 5 horas e 14% do limite semanal.

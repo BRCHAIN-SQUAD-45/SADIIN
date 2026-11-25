@@ -1,12 +1,14 @@
 import logging
 import os
 from typing import Literal
+from xml.etree import ElementTree
 
 import httpx
 from fastapi import APIRouter, Query
 
 from app.api.responses import api_error, source_unavailable
 from app.integrations.geocoding import municipio_por_coordenadas
+from app.integrations.noticias import noticias_para_home
 from app.integrations.units import (
     CNES_PAGE_LIMIT,
     buscar_todas_unidades_municipais,
@@ -105,8 +107,26 @@ async def regional_dashboard():
 
 
 @router.get("/news")
-async def get_news():
-    return source_unavailable(
-        "/news",
-        "Não há feed de notícias do Ministério da Saúde integrado a esta API.",
-    )
+async def get_news(
+    uf: str | None = Query(None, min_length=2, max_length=2, pattern=r"^[A-Za-z]{2}$"),
+    city_ibge: str | None = Query(None, pattern=r"^\d{7}$"),
+    limit: int = Query(4, ge=1, le=12),
+):
+    """Notícias oficiais do Ministério da Saúde (gov.br/saude) para o carrossel da Home.
+
+    O feed é nacional; com `uf`, notícias que citam o estado aparecem primeiro. `city_ibge`
+    é aceito pelo contrato, mas o Ministério não publica notícias por município.
+    """
+    try:
+        payload, stale = await noticias_para_home(limit=limit, uf=uf)
+    except (httpx.HTTPError, ElementTree.ParseError, ValueError) as exc:
+        logger.warning("Falha ao consultar notícias do Ministério da Saúde: %s", exc)
+        return api_error(
+            502,
+            "UPSTREAM_UNAVAILABLE",
+            "Não foi possível carregar as notícias do Ministério da Saúde agora.",
+            "/news",
+        )
+    if stale:
+        logger.info("Notícias servidas da última cópia válida (gov.br indisponível).")
+    return payload
