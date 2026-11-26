@@ -80,7 +80,7 @@ describe('Fase 2 — Layout global + Home idênticos ao protótipo', () => {
     ).toBeInTheDocument();
   });
 
-  it('seletor de localização persiste escolha em localStorage e atualiza a cidade das notícias', async () => {
+  it('seletor de localização persiste escolha em localStorage e atualiza a cidade selecionada', async () => {
     const user = userEvent.setup();
     renderAt('/');
 
@@ -89,10 +89,23 @@ describe('Fase 2 — Layout global + Home idênticos ao protótipo', () => {
     const citySelect = within(dialog).getByLabelText('Cidade');
     await user.selectOptions(citySelect, '3509502'); // Campinas
 
-    expect(
-      await screen.findByText(/Informações e avisos importantes para moradores de Campinas\./),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /Atual: Campinas, SP/i })).toBeInTheDocument();
     expect(window.localStorage.getItem('brchain.location')).toContain('Campinas');
+  });
+
+  it('notícias do Ministério da Saúde: card grande funciona como carrossel', async () => {
+    const user = userEvent.setup();
+    renderAt('/');
+
+    expect(await screen.findByText('Últimas notícias')).toBeInTheDocument();
+    expect(screen.queryByText(/NOTÍCIAS DA SUA REGIÃO/)).not.toBeInTheDocument();
+
+    const next = await screen.findByRole('button', { name: 'Próxima notícia' });
+    expect(screen.getByText(/^1 \/ \d+$/)).toBeInTheDocument();
+    await user.click(next);
+    expect(screen.getByText(/^2 \/ \d+$/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Notícia anterior' }));
+    expect(screen.getByText(/^1 \/ \d+$/)).toBeInTheDocument();
   });
 
   it('botão Acessibilidade alterna data-a11y no html e persiste no localStorage', async () => {

@@ -68,6 +68,18 @@ export function HomePage() {
   });
   const nearbyQuery = useNearbyUnits(location.lat, location.lng, 10, location.ibgeCode);
   const newsQuery = useNews(location.uf, location.ibgeCode);
+
+  // Carrossel: o card grande percorre destaque + demais notícias; a lista ao lado mostra as outras.
+  const [newsIndex, setNewsIndex] = useState(0);
+  const newsSlides = newsQuery.data
+    ? [...(newsQuery.data.featured ? [newsQuery.data.featured] : []), ...newsQuery.data.items]
+    : [];
+  const safeNewsIndex = newsSlides.length
+    ? ((newsIndex % newsSlides.length) + newsSlides.length) % newsSlides.length
+    : 0;
+  const currentNews = newsSlides[safeNewsIndex];
+  const newsListItems = newsSlides.filter((_, i) => i !== safeNewsIndex).slice(0, 4);
+  const goToNews = (next: number) => setNewsIndex(next);
   const dashboardQuery = useRegionalDashboard(location.uf, location.ibgeCode);
   const sourcesQuery = useSources();
 
@@ -488,13 +500,13 @@ export function HomePage() {
         </div>
       </section>
 
-      {/* 4. NOTÍCIAS DA SUA REGIÃO */}
+      {/* 4. NOTÍCIAS DO MINISTÉRIO DA SAÚDE */}
       <section className="local-news section-width">
         <div className="section-title split">
           <div>
-            <span>NOTÍCIAS DA SUA REGIÃO</span>
-            <h2>Saúde perto de você</h2>
-            <p>Informações e avisos importantes para moradores de {location.cityName}.</p>
+            <span>MINISTÉRIO DA SAÚDE</span>
+            <h2>Últimas notícias</h2>
+            <p>Informações e avisos oficiais do Ministério da Saúde.</p>
           </div>
           <button type="button" aria-disabled="true">
             Ver todas as notícias <Icon name="arrow" size={17} />
@@ -516,36 +528,60 @@ export function HomePage() {
           <ErrorState
             error={newsQuery.error}
             onRetry={() => void newsQuery.refetch()}
-            fallbackTitle="Não foi possível carregar as notícias regionais"
+            fallbackTitle="Não foi possível carregar as notícias"
           />
         )}
 
-        {newsQuery.data && !newsQuery.data.featured && newsQuery.data.items.length === 0 && (
-          <EmptyState title="Nenhuma notícia disponível para esta região no momento" />
+        {newsQuery.data && newsSlides.length === 0 && (
+          <EmptyState title="Nenhuma notícia disponível no momento" />
         )}
 
-        {newsQuery.data && (newsQuery.data.featured || newsQuery.data.items.length > 0) && (
+        {newsQuery.data && currentNews && (
           <div className="news-grid">
-            {newsQuery.data.featured && (
-              <article className="news-featured">
-                {newsQuery.data.featured.image_url && (
-                  <img src={newsQuery.data.featured.image_url} alt="" />
-                )}
-                <div>
-                  <span>{newsQuery.data.featured.category}</span>
-                  <h3>
-                    <NewsLink url={newsQuery.data.featured.url}>
-                      {newsQuery.data.featured.title}
-                    </NewsLink>
-                  </h3>
-                  {newsQuery.data.featured.summary && <p>{newsQuery.data.featured.summary}</p>}
-                  <small>{newsQuery.data.featured.source_label}</small>
-                </div>
-              </article>
-            )}
+            <article
+              className="news-featured"
+              aria-roledescription="carrossel"
+              aria-label="Notícias em destaque"
+            >
+              {currentNews.image_url && (
+                <img key={currentNews.id} src={currentNews.image_url} alt="" />
+              )}
+              <div aria-live="polite">
+                <span>{currentNews.category}</span>
+                <h3>
+                  <NewsLink url={currentNews.url}>{currentNews.title}</NewsLink>
+                </h3>
+                {currentNews.summary && <p>{currentNews.summary}</p>}
+                <small>{currentNews.source_label}</small>
+              </div>
+              {newsSlides.length > 1 && (
+                <nav
+                  className="news-carousel-controls"
+                  aria-label="Navegar pelas notícias em destaque"
+                >
+                  <button
+                    type="button"
+                    aria-label="Notícia anterior"
+                    onClick={() => goToNews(newsIndex - 1)}
+                  >
+                    <Icon name="chevron" size={18} />
+                  </button>
+                  <em>
+                    {safeNewsIndex + 1} / {newsSlides.length}
+                  </em>
+                  <button
+                    type="button"
+                    aria-label="Próxima notícia"
+                    onClick={() => goToNews(newsIndex + 1)}
+                  >
+                    <Icon name="chevron" size={18} />
+                  </button>
+                </nav>
+              )}
+            </article>
 
             <div className="news-list">
-              {newsQuery.data.items.map((item) => {
+              {newsListItems.map((item) => {
                 const { day, month } = formatNewsDayMonth(item.published_at);
                 return (
                   <article key={item.id}>
