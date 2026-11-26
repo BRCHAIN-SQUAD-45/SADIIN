@@ -8,6 +8,8 @@ import { useMedicationCategories, useMedications } from '../features/medications
 import { useGlobalSearch } from '../features/search/useGlobalSearch';
 import { useDebounce } from '../hooks/useDebounce';
 import { FALLBACK_CARD_IMAGE } from '../utils/format';
+import { DidYouMean } from '../components/search/DidYouMean';
+import { foiCorrigido } from '../utils/busca';
 
 export function DirectoryPage({ kind }: { kind: 'medications' | 'conditions' }) {
   const isMedications = kind === 'medications';
@@ -169,10 +171,25 @@ export function DirectoryPage({ kind }: { kind: 'medications' | 'conditions' }) 
           </div>
         )}
 
-        {matchedTerm && !aiFallback && (
-          <div className="search-matched-term" role="status">
-            <Icon name="check" size={15} /> Termo interpretado como: <strong>{matchedTerm}</strong>
-          </div>
+        {!aiFallback && foiCorrigido(effectiveQuery, matchedTerm) ? (
+          <DidYouMean
+            className="directory-did-you-mean"
+            query={effectiveQuery}
+            matchedTerm={matchedTerm}
+            suggestions={aiSearchQuery.data?.suggestions}
+            onPick={(termo) => {
+              setSearchInput(termo);
+              setSubmittedSearch(termo);
+            }}
+          />
+        ) : (
+          matchedTerm &&
+          !aiFallback && (
+            <div className="search-matched-term" role="status">
+              <Icon name="check" size={15} /> Termo interpretado como:{' '}
+              <strong>{matchedTerm}</strong>
+            </div>
+          )
         )}
 
         <div className="directory-toolbar">

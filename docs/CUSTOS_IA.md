@@ -34,9 +34,12 @@ Os números abaixo foram extraídos diretamente dos logs de execução (`input_t
 | 10/11/2026 | [`INT01`](./prompts/INT01-integracao-front-back.md) | Verificação ao vivo das 21 rotas, ajustes de contrato, tratamento de 501, 11 testes novos, docs | Claude Code (Claude Opus 5.5), plano **Pro** (assinatura, sem cobrança por token) | ≈ 269.000 |
 | 25/11/2026 | [`INT02`](./prompts/INT02-desempenho-ubs-e-noticias.md) | #62 (cache e paralelismo da ficha da UBS, nomes legíveis) e #57 (notícias oficiais do gov.br), 26 testes `pytest`, workflow do back-end, docs | Claude Code (Claude Opus 5.5), plano **Pro** | ≈ 429.000 (≈ 160.000 a mais que no INT01, na mesma sessão) |
 | 25/11/2026 | [`INT03`](./prompts/INT03-doencas-e-busca-global.md) | Revisão do Kanban (PDF) + #43/#46 (catálogo de doenças com CID-10) e #33 (busca global), 23 testes `pytest`, docs | Claude Code (Claude Opus 5.5), plano **Pro** | ≈ 637.000 (≈ 208.000 a mais que no INT02, na mesma sessão) |
+| 26/11/2026 | [`INT04`](./prompts/INT04-busca-tolerante-a-erros.md) | Revisão do PR #67 + #64 (índice de busca, termo reconhecido, "Você quis dizer?"), 14 testes novos, docs | Claude Code (Claude Opus 5.5), plano **Pro** | ≈ 810.000 (≈ 173.000 a mais que no INT03, na mesma sessão) |
 
 > **Como ler este número:** o app do Claude Code informa o tamanho do contexto da sessão (≈ 269 mil tokens de 1 milhão, cerca de 27%), e não a soma de tokens de entrada e saída de cada chamada, como na tabela do Front-end. Por isso o valor não é diretamente comparável com a seção 1. No plano Pro o custo é a assinatura mensal: a sessão consumiu cerca de 14% do limite de 5 horas e 15% do limite semanal.
 
 > **INT02:** feito na mesma sessão do INT01, por isso o contexto acumula as duas tarefas. A parte do INT02 é a diferença, cerca de 160 mil tokens. Consumo do plano Pro: cerca de 22% do limite de 5 horas e 14% do limite semanal.
 
 > **INT03:** mesma sessão do INT01 e do INT02. A parte do INT03 (com a revisão do Kanban) é a diferença, cerca de 208 mil tokens. Consumo do plano Pro: cerca de 57% do limite de 5 horas e 18% do limite semanal.
+
+> **INT04:** mesma sessão dos anteriores. A parte do INT04 (com a revisão do PR #67) é a diferença, cerca de 173 mil tokens. Consumo do plano Pro: cerca de 28% do limite de 5 horas e 26% do limite semanal.

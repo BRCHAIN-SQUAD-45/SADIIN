@@ -777,3 +777,41 @@
   font-size: var(--fs-9);
   line-height: 1.45;
 }
+
+/* "Você quis dizer…?" (issue #64): correção de erro de digitação na busca. */
+.did-you-mean {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  margin: 10px 0;
+  padding: 10px 14px;
+  color: #123e3a;
+  background: #fff7e6;
+  border: 1px solid #f1d6a0;
+  border-radius: 10px;
+  font-size: var(--fs-10);
+}
+.did-you-mean button {
+  padding: 0;
+  color: #087e70;
+  background: none;
+  border: 0;
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.did-you-mean button:focus-visible {
+  outline: 2px solid #087e70;
+  outline-offset: 2px;
+}
+.did-you-mean-others {
+  color: #5b6b68;
+}
+.did-you-mean-others button {
+  font-weight: 600;
+}
+.directory-did-you-mean {
+  margin-top: 0;
+}

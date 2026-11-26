@@ -19,7 +19,7 @@ from app.integrations.anvisa import (
 )
 from app.integrations.geocoding import municipio_por_coordenadas
 from app.integrations.noticias import noticias_para_home
-from app.search.fuzzy import normalize_search_text
+from app.search.fuzzy import fuzzy_threshold, normalize_search_text, similarity
 from app.integrations.units import (
     CNES_PAGE_LIMIT,
     buscar_todas_unidades_municipais,
@@ -101,6 +101,20 @@ def _termo_reconhecido(q: str, medicamentos: list[dict], condicoes: list[dict]) 
     return "unknown", None
 
 
+def _melhor_doenca_aproximada(q: str, condicoes: list[dict]) -> tuple[str, float] | None:
+    """Doença dos resultados mais parecida com o texto digitado (nome ou sinônimo) e a nota."""
+    melhor: tuple[str, float] | None = None
+    for doenca in condicoes:
+        topico = (doencas.por_id(doenca["id"]) or {}).get("_topico")
+        nomes = [doenca["popular_name"], *(topico.sinonimos if topico else ())]
+        nota = max(similarity(q, nome) for nome in nomes)
+        if melhor is None or nota > melhor[1]:
+            melhor = (doenca["popular_name"], nota)
+    if melhor and melhor[1] >= fuzzy_threshold(q):
+        return melhor
+    return None
+
+
 @router.get("/search")
 async def global_search(
     request: Request,
@@ -180,9 +194,11 @@ async def global_search(
             logger.warning("Sugestões de indicações indisponíveis: %s", exc)
             suggestions_unavailable = True
 
+    # Ordena só pela nota; no empate mantém a ordem do ranking (que já prefere o nome mais
+    # simples: "Paracetamol" antes de "Fosfato de Codeína, Paracetamol"). sorted() é estável.
     suggestions = sorted(
         medication_suggestions + indication_suggestions,
-        key=lambda item: (-item["score"], item["label"].casefold()),
+        key=lambda item: -item["score"],
     )
     best_suggestion = suggestions[0] if suggestions else None
     exact_medication_match = any(
@@ -220,8 +236,16 @@ async def global_search(
     }
     if termo:
         resposta["matched_term"] = termo
-    elif best_suggestion and not exact_medication_match:
-        resposta["matched_term"] = best_suggestion["label"]
+    else:
+        # Sem nome exato: a doença parecida (catálogo oficial e curado) compete com a melhor
+        # sugestão de medicamento e vence no empate. Ex.: "pressao auta" -> Hipertensão.
+        doenca_parecida = _melhor_doenca_aproximada(q, resultados["conditions"])
+        nota_sugestao = best_suggestion["score"] if best_suggestion and not exact_medication_match else -1
+        if doenca_parecida and doenca_parecida[1] >= nota_sugestao:
+            resposta["matched_term"] = doenca_parecida[0]
+            resposta["intent"] = "condition"
+        elif best_suggestion and not exact_medication_match:
+            resposta["matched_term"] = best_suggestion["label"]
     if suggestions:
         resposta["suggestions"] = suggestions
     if "medications" in falhas or suggestions_unavailable:
