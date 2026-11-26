@@ -86,10 +86,11 @@
   border: 1px solid #dce8e5;
   border-radius: 6px;
   width: 100%;
-  height: 32px;
+  min-height: 36px;
+  height: auto;
   margin-top: 3px;
-  padding: 0 8px;
-  font-size: var(--fs-10);
+  padding: 5px 8px;
+  font-size: min(var(--fs-10), 15px);
   display: block;
 }
 .location-popover-actions {
@@ -114,8 +115,109 @@
   border-color: #087e70;
 }
 
+/* Seletor customizado de unidade (botão + listbox) */
+.unit-selector {
+  position: relative;
+  padding: 0;
+  max-width: 100%;
+}
+.unit-selector-trigger {
+  color: #75d9bc;
+  background: transparent;
+  border: 0;
+  border-radius: 7px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  height: 100%;
+  padding: 0 12px;
+  font-size: var(--fs-10);
+  display: flex;
+  cursor: pointer;
+}
+.unit-selector-trigger > span {
+  color: #fff;
+  text-align: left;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+.unit-selector-trigger svg {
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+.unit-selector.open .unit-selector-trigger svg {
+  transform: rotate(180deg);
+}
+.unit-selector-menu {
+  z-index: 35;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  width: 100%;
+  max-width: calc(100vw - 32px);
+  max-height: min(320px, 60vh);
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  box-shadow: 0 12px 28px #12443d26;
+}
+.unit-selector-option {
+  color: var(--text-strong);
+  border-radius: 6px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  font-size: var(--fs-10);
+  display: flex;
+  cursor: pointer;
+  transition:
+    background-color 0.12s ease,
+    color 0.12s ease;
+}
+.unit-selector-option > span {
+  text-align: left;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  min-width: 0;
+  overflow: hidden;
+}
+.unit-selector-option:hover,
+.unit-selector-option.highlighted {
+  background: var(--mint-soft);
+}
+.unit-selector-option.selected {
+  color: var(--primary);
+  background: var(--mint-bg);
+  font-weight: 600;
+}
+.unit-selector-option.selected:hover,
+.unit-selector-option.selected.highlighted {
+  background: var(--mint-bg);
+}
+.unit-selector-option svg {
+  color: var(--primary);
+  flex-shrink: 0;
+}
+
 /* Painel de resultados da busca global no hero (Q3) */
+.search-feedback {
+  position: relative;
+  z-index: 1;
+  margin: 0 auto 14px;
+}
 .search-results-panel {
+  position: relative;
+  z-index: 10;
   text-align: left;
   background: #fff;
   border: 1px solid #c8e1dc;
@@ -431,6 +533,7 @@
   flex-wrap: wrap;
   gap: 5px;
   margin-top: 8px;
+  margin-bottom: 14px;
   display: flex;
 }
 .card-alert-tag {
@@ -459,4 +562,218 @@
   padding: 12px 14px 0;
   display: flex;
   overflow-x: auto;
+}
+
+/* Card 6 — Acessibilidade Avançada (Skip Link + Controles A/A+/A++) e Benchmarking Portugal (SNS 24 / Infarmed) */
+.skip-link {
+  z-index: 100;
+  color: #fff;
+  background: #073e39;
+  border: 2px solid #17a48d;
+  border-radius: 6px;
+  padding: 8px 14px;
+  font-size: var(--fs-10);
+  font-weight: 700;
+  position: absolute;
+  top: -100px;
+  left: 12px;
+  transition: top 0.15s ease;
+}
+.skip-link:focus {
+  top: 8px;
+}
+
+.a11y-font-controls {
+  align-items: center;
+  gap: 4px;
+  display: inline-flex;
+}
+.gov-bar {
+  min-height: 36px;
+  height: auto;
+  padding-top: 6px;
+  padding-bottom: 6px;
+  flex-wrap: wrap;
+}
+.site-header {
+  gap: clamp(10px, 1.4vw, 24px);
+  min-height: 74px;
+  height: auto;
+  padding: 10px max(20px, 50% - 610px);
+}
+/* Fontes ampliadas (A+/A++/alto contraste): os links quebram de linha DENTRO do nav,
+ * então o logo e o seletor de localização nunca saem do lugar nem geram rolagem horizontal. */
+@media (width>=981px) {
+  .site-header nav {
+    flex: 1 1 auto;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 2px clamp(12px, 1.4vw, 24px);
+    min-width: 0;
+    height: auto;
+  }
+  .site-header nav a {
+    height: auto;
+    padding: 6px 0;
+  }
+}
+.portal {
+  overflow-x: clip;
+}
+.header-actions {
+  flex-shrink: 0;
+}
+.location-button {
+  white-space: nowrap;
+  flex-shrink: 0;
+  max-width: 240px;
+}
+.location-button span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.location-button svg {
+  flex-shrink: 0;
+}
+/* Cartões flutuantes do hero cobrem a busca quando a fonte cresce: somem em telas menores. */
+@media (width<=1180px) {
+  .data-card {
+    display: none;
+  }
+}
+/* Celular: mantém Acessibilidade e A/A+/A++ visíveis (o protótipo escondia todos os botões). */
+@media (width<=760px) {
+  .gov-bar {
+    gap: 6px;
+  }
+  .gov-bar > div {
+    gap: 8px;
+  }
+  .gov-bar button {
+    display: inline-flex;
+  }
+}
+.a11y-font-controls button {
+  color: #d6ebe6;
+  background: #ffffff14;
+  border: 1px solid #ffffff29;
+  border-radius: 4px;
+  padding: 2px 7px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+.a11y-font-controls button.active,
+.a11y-font-controls button[aria-pressed='true'] {
+  color: #073e39;
+  background: #8ef0d4;
+  border-color: #8ef0d4;
+}
+
+.citizen-summary-bar {
+  background: #f4faf8;
+  border: 1px solid #cfe3dd;
+  border-radius: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+  margin-bottom: 18px;
+  padding: 14px 18px;
+  display: grid;
+}
+.directory-page .unit-content .medical-warning {
+  margin-bottom: 40px;
+}
+@media (width<=760px) {
+  .citizen-summary-bar {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+.citizen-summary-item small {
+  color: #0d8977;
+  letter-spacing: 0.5px;
+  font-size: var(--fs-7);
+  font-weight: 700;
+  display: block;
+  margin-bottom: 3px;
+}
+.citizen-summary-item strong {
+  color: #123e3a;
+  font-size: var(--fs-10);
+  font-weight: 700;
+  display: block;
+}
+
+.triage-guide-section {
+  background: #fff;
+  border: 1px solid #dfeae7;
+  border-radius: 11px;
+  margin-top: 18px;
+  padding: 18px 20px;
+}
+.triage-guide-head span {
+  color: #0d8977;
+  letter-spacing: 0.7px;
+  font-size: var(--fs-7);
+  font-weight: 700;
+  display: block;
+}
+.triage-guide-head h2 {
+  color: #123e3a;
+  margin: 4px 0 14px;
+  font-size: var(--fs-15);
+}
+.triage-levels-grid {
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  display: grid;
+}
+@media (width<=760px) {
+  .triage-levels-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.triage-level-card {
+  background: #f8fbfa;
+  border: 1px solid #dfeae7;
+  border-top: 3px solid #17a48d;
+  border-radius: 8px;
+  padding: 13px 15px;
+}
+.triage-level-card.level-primary {
+  border-top-color: #d99b26;
+}
+.triage-level-card.level-emergency {
+  border-top-color: #c94a4a;
+}
+.triage-level-badge {
+  color: #087e70;
+  background: #e8f5f1;
+  border-radius: 10px;
+  margin-bottom: 7px;
+  padding: 2px 8px;
+  font-size: var(--fs-7);
+  font-weight: 700;
+  display: inline-block;
+}
+.triage-level-card.level-primary .triage-level-badge {
+  color: #8f5c14;
+  background: #fff3dc;
+}
+.triage-level-card.level-emergency .triage-level-badge {
+  color: #8c3d40;
+  background: #faeeee;
+}
+.triage-level-card strong {
+  color: #123e3a;
+  margin-bottom: 4px;
+  font-size: var(--fs-11);
+  display: block;
+}
+.triage-level-card p {
+  color: #46706a;
+  margin: 0;
+  font-size: var(--fs-9);
+  line-height: 1.45;
 }

@@ -126,6 +126,16 @@ export function HomePage() {
             um único lugar.
           </p>
 
+          {feedbackBanner && (
+            <div className="search-feedback" role="status">
+              <Icon name="check" size={17} />
+              {feedbackBanner}
+              <button type="button" aria-label="Limpar busca" onClick={clearSearch}>
+                <Icon name="close" size={15} />
+              </button>
+            </div>
+          )}
+
           <div className="search-box">
             <div className="search-tabs" role="tablist" aria-label="Filtrar tipo de busca">
               {SEARCH_TABS.map((tab) => (
@@ -153,6 +163,7 @@ export function HomePage() {
                 value={queryText}
                 onChange={(e) => {
                   setQueryText(e.target.value);
+                  setFeedbackBanner('');
                   if (!e.target.value.trim()) setSubmittedQuery('');
                 }}
                 placeholder="O que você procura? Ex.: dengue, dipirona, UBS..."
@@ -170,16 +181,6 @@ export function HomePage() {
               </button>
             ))}
           </div>
-
-          {feedbackBanner && (
-            <div className="search-feedback" role="status">
-              <Icon name="check" size={17} />
-              {feedbackBanner}
-              <button type="button" aria-label="Limpar busca" onClick={clearSearch}>
-                <Icon name="close" size={15} />
-              </button>
-            </div>
-          )}
 
           {showSearchPanel && searchQuery.data && (
             <div className="search-results-panel" role="region" aria-label="Resultados da pesquisa">

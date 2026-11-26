@@ -15,7 +15,9 @@ Os números abaixo foram extraídos diretamente dos logs de execução (`input_t
 | 28/10/2026 | [`FE03`](./prompts/FE03-layout-global-e-home.md) — Fase 2 | Layout global (`GovBar`, `Header`, `Footer`), página Home e 34 testes Vitest | 69 | 455.470 | 92.207 | 547.677 |
 | 28/10/2026 | [`FE04`](./prompts/FE04-telas-medicamentos-doencas-ubs.md) — Fase 3 | Páginas de Medicamentos, Doenças e Sintomas, Detalhes da UBS e 40 testes Vitest | 70 | 313.866 | 63.218 | 377.084 |
 | 02/11/2026 | [`FE05`](./prompts/FE05-mappers-mapa-leaflet-contrato.md) — Fases 4, 5 e 6 | Camada de mappers, mapa interativo Leaflet, gráfico Recharts (`US-04.4`), contrato `/api/v1` e 47 testes Vitest | 35 | 1.851.947 | 108.904 | 1.960.851 |
-| **Total Front-end (Fases 0 a 6)** | — | — | **211** | **3.762.003** | **324.212** | **4.086.215** |
+| 24/11/2026 | [`FE06`](./prompts/FE06-filtro-ubs-acessibilidade-ux-portugal.md) — Cards 4 e 6 | Filtro de UBS por UF/município, `rooms: null`, escala proporcional, acessibilidade `A/A+/A++`, UI/UX SNS 24/Infarmed e 61 testes Vitest | 47 | 829.291 | 39.755 | 869.046 |
+| 25/11/2026 | [`FE06`](./prompts/FE06-filtro-ubs-acessibilidade-ux-portugal.md) `v1.3` — Revisão do PR #67 | Remoção de dados não confirmados do resumo do medicamento, guia de atendimento com emergências (192 primeiro), escala de fonte `A/A+/A++` corrigida, cabeçalho e celular, `formatDisplayName` e 63 testes Vitest | 49 | 1.330.955 | 36.779 | 1.367.734 |
+| **Total Front-end (Fases 0 a 6 + Cards 4 e 6 + revisão do PR #67)** | — | — | **307** | **5.922.249** | **400.746** | **6.322.995** |
 
 ---
 

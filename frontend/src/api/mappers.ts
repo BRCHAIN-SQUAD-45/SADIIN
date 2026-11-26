@@ -1,9 +1,11 @@
 import type { AttendanceHistory, Condition, Medication, UnitMetrics, UnitSummary } from './types';
 import {
+  buildMedicationCardIllustration,
   buildRouteUrl,
   buildTelHref,
   FALLBACK_CARD_IMAGE,
   formatClosesAt,
+  formatDisplayName,
   formatDistanceLabel,
   formatInt,
   formatMovementLabel,
@@ -42,17 +44,18 @@ export function mapMedicationToCardView(med: Medication): DirectoryCardView {
     alertTags.push(rxLabel);
   }
 
+  const cleanTitle = formatDisplayName(med.name);
   return {
     id: med.id,
     kicker: 'MEDICAMENTO',
-    title: med.name,
-    subtitle: med.subtitle,
+    title: cleanTitle,
+    subtitle: formatDisplayName(med.subtitle),
     badge: med.tag,
     alertTags,
     requiresPrescription: med.requires_prescription,
     symptomSummary: [],
-    imageUrl: med.image_url ?? FALLBACK_CARD_IMAGE,
-    imageAlt: med.image_alt ?? med.name,
+    imageUrl: med.image_url ?? buildMedicationCardIllustration(med.tag),
+    imageAlt: med.image_alt ?? cleanTitle,
     detailHref: `/medicamentos/${med.id}`,
   };
 }
@@ -96,10 +99,11 @@ export interface UnitPinView {
 }
 
 export function mapUnitSummaryToPinView(unit: UnitSummary): UnitPinView {
+  const cleanName = formatDisplayName(unit.name);
   return {
     cnes: unit.cnes_code,
-    name: unit.name,
-    address: unit.address,
+    name: cleanName,
+    address: formatDisplayName(unit.address),
     cityUf: `${unit.city}, ${unit.uf}`,
     lat: unit.lat,
     lng: unit.lng,
@@ -109,7 +113,7 @@ export function mapUnitSummaryToPinView(unit: UnitSummary): UnitPinView {
     distanceLabel: formatDistanceLabel(unit.distance_m),
     phone: unit.phone,
     telHref: buildTelHref(unit.phone),
-    routeUrl: buildRouteUrl(unit.lat, unit.lng, unit.name),
+    routeUrl: buildRouteUrl(unit.lat, unit.lng, cleanName),
     detailHref: `/unidades/${unit.cnes_code}`,
     kind: unit.kind,
   };
@@ -162,12 +166,19 @@ export interface AttendanceChartView {
 }
 
 export function mapAttendanceHistoryToChartView(history: AttendanceHistory): AttendanceChartView {
+  const maxAttendances = Math.max(...history.days.map((d) => d.attendances), 0);
   return {
     bars: history.days.map((d) => ({
       date: d.date,
       weekdayLabel: d.weekday_label,
       attendances: d.attendances,
-      heightPct: Math.min(100, d.attendances),
+      // Mínimo de 2% só para a barra continuar visível; não exagera meses com poucos atendimentos.
+      heightPct:
+        maxAttendances > 100
+          ? d.attendances > 0
+            ? Math.max(2, Math.round((d.attendances / maxAttendances) * 100))
+            : 0
+          : Math.min(100, d.attendances),
       ariaLabel: `${d.weekday_label}: ${d.attendances} atendimentos`,
     })),
     totalFormatted: formatInt(history.total),

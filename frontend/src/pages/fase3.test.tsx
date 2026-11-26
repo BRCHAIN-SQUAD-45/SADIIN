@@ -178,7 +178,14 @@ describe('Fase 3 — Medicamentos, Doenças e Sintomas e Detalhes da UBS', () =>
     expect(screen.getByText('profissionais')).toBeInTheDocument();
 
     // Seletor de unidade alterna para UBS Sé (9990002)
-    await user.selectOptions(screen.getByLabelText('Selecionar unidade'), '9990002');
+    const unitSelectorBtn = screen.getByRole('button', { name: 'Selecionar unidade' });
+    expect(unitSelectorBtn).toHaveAttribute('aria-haspopup', 'listbox');
+    expect(unitSelectorBtn).toHaveAttribute('aria-expanded', 'false');
+    await user.click(unitSelectorBtn);
+    expect(unitSelectorBtn).toHaveAttribute('aria-expanded', 'true');
+    const listbox = screen.getByRole('listbox', { name: 'Unidades de saúde' });
+    await user.click(within(listbox).getByRole('option', { name: 'UBS Sé' }));
+    expect(unitSelectorBtn).toHaveAttribute('aria-expanded', 'false');
     expect(await screen.findByRole('heading', { level: 2, name: 'UBS Sé' })).toBeInTheDocument();
     expect(await screen.findByText('3.190')).toBeInTheDocument();
   });

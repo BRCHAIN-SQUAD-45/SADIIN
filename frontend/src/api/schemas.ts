@@ -185,7 +185,8 @@ export const UnitServiceListSchema = z.array(UnitServiceSchema);
 /** Equipe e estrutura da UBS (`GET /ubs/{cnes}/staff`). */
 export const UnitStaffSchema = z.object({
   professionals: z.number().int().nonnegative(),
-  rooms: z.number().int().nonnegative(),
+  /** `null` quando a fonte oficial do CNES não informa contagem de consultórios. */
+  rooms: z.number().int().nonnegative().nullable(),
   esf_teams: z.number().int().nonnegative(),
   reference_date: z.string(),
   meta: ProvenanceMetaSchema,
