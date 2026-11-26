@@ -218,6 +218,7 @@ export function DirectoryPage({ kind }: { kind: 'medications' | 'conditions' }) 
                   type="button"
                   role="tab"
                   aria-selected={isActive}
+                  title={cat.name}
                   className={isActive ? 'active' : ''}
                   onClick={() => setSelectedCategory(cat.id)}
                 >
