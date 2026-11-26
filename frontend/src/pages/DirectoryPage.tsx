@@ -1,5 +1,6 @@
-import { useState, type FormEvent } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useState, type FormEvent } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { mapConditionToCardView, mapMedicationToCardView } from '../api/mappers';
 import { Icon } from '../components/ui/Icon';
 import { EmptyState, ErrorState, ProvenanceTags, Skeleton } from '../components/ui/States';
 import { useConditionCategories, useConditions } from '../features/conditions/useConditions';
@@ -10,9 +11,22 @@ import { FALLBACK_CARD_IMAGE } from '../utils/format';
 
 export function DirectoryPage({ kind }: { kind: 'medications' | 'conditions' }) {
   const isMedications = kind === 'medications';
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialUrlQuery = searchParams.get('q') ?? '';
+
   const [selectedCategory, setSelectedCategory] = useState<string>('todos');
-  const [searchInput, setSearchInput] = useState<string>('');
-  const [submittedSearch, setSubmittedSearch] = useState<string | null>(null);
+  const [searchInput, setSearchInput] = useState<string>(initialUrlQuery);
+  const [submittedSearch, setSubmittedSearch] = useState<string | null>(
+    initialUrlQuery ? initialUrlQuery : null,
+  );
+
+  // Sincroniza quando o usuário navega entre Medicamentos e Doenças ou vem da Home com ?q=...
+  useEffect(() => {
+    const qParam = searchParams.get('q') ?? '';
+    setSearchInput(qParam);
+    setSubmittedSearch(qParam ? qParam : null);
+    setSelectedCategory('todos');
+  }, [kind, searchParams]);
 
   const debouncedSearch = useDebounce(searchInput, 300);
   const effectiveQuery = (submittedSearch ?? debouncedSearch).trim();
@@ -50,6 +64,9 @@ export function DirectoryPage({ kind }: { kind: 'medications' | 'conditions' }) 
     setSearchInput('');
     setSubmittedSearch(null);
     setSelectedCategory('todos');
+    if (searchParams.has('q')) {
+      setSearchParams({}, { replace: true });
+    }
   };
 
   const categories = categoriesQuery.data ?? [];
@@ -69,6 +86,8 @@ export function DirectoryPage({ kind }: { kind: 'medications' | 'conditions' }) 
 
   const rawMedications = medicationsQuery.data?.items ?? [];
   const rawConditions = conditionsQuery.data?.items ?? [];
+  const medicationCards = rawMedications.map(mapMedicationToCardView);
+  const conditionCards = rawConditions.map(mapConditionToCardView);
 
   const totalCount = isPrescriptiveBlocked
     ? 0
@@ -209,7 +228,7 @@ export function DirectoryPage({ kind }: { kind: 'medications' | 'conditions' }) 
             }
           />
         ) : isPrescriptiveBlocked ? null : isMedications ? (
-          rawMedications.length === 0 ? (
+          medicationCards.length === 0 ? (
             <EmptyState
               title="Nenhum medicamento encontrado"
               description="Tente buscar por outro termo ou selecione 'Todos' nas categorias."
@@ -218,24 +237,38 @@ export function DirectoryPage({ kind }: { kind: 'medications' | 'conditions' }) 
             />
           ) : (
             <div className="content-grid">
-              {rawMedications.map((med) => (
+              {medicationCards.map((med) => (
                 <article key={med.id} className="content-card">
                   <div className="content-image">
                     <img
-                      src={med.image_url ?? FALLBACK_CARD_IMAGE}
-                      alt={med.image_alt ?? med.name}
+                      src={med.imageUrl}
+                      alt={med.imageAlt}
                       loading="lazy"
                       onError={(e) => {
                         e.currentTarget.src = FALLBACK_CARD_IMAGE;
                       }}
                     />
-                    <span>{med.tag}</span>
+                    <span>{med.badge}</span>
                   </div>
                   <div className="content-card-copy">
-                    <small>MEDICAMENTO</small>
-                    <h2>{med.name}</h2>
+                    <small>{med.kicker}</small>
+                    <h2>{med.title}</h2>
                     <p>{med.subtitle}</p>
-                    <Link to={`/medicamentos/${med.id}`}>
+                    <div className="card-alert-tags" aria-label="Tags de alerta do medicamento">
+                      {med.alertTags.map((tag) => (
+                        <span
+                          key={tag}
+                          className={
+                            tag === 'Requer receita'
+                              ? 'card-alert-tag prescription'
+                              : 'card-alert-tag'
+                          }
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                    <Link to={med.detailHref}>
                       Ver informações completas <Icon name="arrow" size={16} />
                     </Link>
                   </div>
@@ -243,7 +276,7 @@ export function DirectoryPage({ kind }: { kind: 'medications' | 'conditions' }) 
               ))}
             </div>
           )
-        ) : rawConditions.length === 0 ? (
+        ) : conditionCards.length === 0 ? (
           <EmptyState
             title="Nenhum conteúdo encontrado"
             description="Tente buscar por outro sintoma ou selecione 'Todos' nas categorias."
@@ -252,24 +285,38 @@ export function DirectoryPage({ kind }: { kind: 'medications' | 'conditions' }) 
           />
         ) : (
           <div className="content-grid">
-            {rawConditions.map((cond) => (
+            {conditionCards.map((cond) => (
               <article key={cond.id} className="content-card">
                 <div className="content-image">
                   <img
-                    src={cond.image_url ?? FALLBACK_CARD_IMAGE}
-                    alt={cond.image_alt ?? cond.popular_name}
+                    src={cond.imageUrl}
+                    alt={cond.imageAlt}
                     loading="lazy"
                     onError={(e) => {
                       e.currentTarget.src = FALLBACK_CARD_IMAGE;
                     }}
                   />
-                  <span>{cond.tag}</span>
+                  <span>{cond.badge}</span>
                 </div>
                 <div className="content-card-copy">
-                  <small>SAÚDE E BEM-ESTAR</small>
-                  <h2>{cond.popular_name}</h2>
+                  <small>{cond.kicker}</small>
+                  <h2>{cond.title}</h2>
                   <p>{cond.subtitle}</p>
-                  <Link to={`/doencas/${cond.id}`}>
+                  {(cond.alertTags.length > 0 || cond.symptomSummary.length > 0) && (
+                    <div className="card-alert-tags" aria-label="Resumo de sintomas">
+                      {cond.alertTags.map((tag) => (
+                        <span key={tag} className="card-alert-tag">
+                          {tag}
+                        </span>
+                      ))}
+                      {cond.symptomSummary.slice(0, 2).map((symptom) => (
+                        <span key={symptom} className="card-alert-tag symptom">
+                          {symptom}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <Link to={cond.detailHref}>
                     Ver informações completas <Icon name="arrow" size={16} />
                   </Link>
                 </div>

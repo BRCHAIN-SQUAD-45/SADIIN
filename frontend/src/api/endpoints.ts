@@ -49,12 +49,10 @@ export const getSearch = (params: SearchQuery, signal?: AbortSignal) =>
   });
 
 export const getConditionSuggestions = (q: string, signal?: AbortSignal) =>
-  apiGet(
-    'GET /conditions/suggestions',
-    '/conditions/suggestions',
-    SearchSuggestionsSchema,
-    { params: { q }, signal },
-  );
+  apiGet('GET /conditions/suggestions', '/conditions/suggestions', SearchSuggestionsSchema, {
+    params: { q },
+    signal,
+  });
 
 export interface DirectoryQuery {
   q?: string;
@@ -94,8 +92,10 @@ export const getConditionById = (id: string, signal?: AbortSignal) =>
   });
 
 export interface NearbyQuery {
-  lat: number;
-  lng: number;
+  /** Com lat/lng o back-end ordena por distância; sem elas, usa `city_ibge`. */
+  lat?: number;
+  lng?: number;
+  city_ibge?: string;
   radius_km?: number;
 }
 

@@ -44,6 +44,17 @@ export function ErrorState({
     : error instanceof Error
       ? error.message
       : 'Tente novamente em alguns instantes.';
+
+  // 501: não é falha — a fonte oficial ainda não existe/está integrada. Tentar de novo não adianta.
+  if (isApiError(error) && error.code === 'SOURCE_UNAVAILABLE') {
+    return (
+      <div className="state-box" role="status">
+        <strong>Dados ainda não disponíveis</strong>
+        <p>{message}</p>
+      </div>
+    );
+  }
+
   return (
     <div className="state-box" role="alert">
       <strong>{fallbackTitle}</strong>

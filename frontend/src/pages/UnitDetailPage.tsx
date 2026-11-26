@@ -1,7 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
+import { UnitAttendanceChart } from '../components/charts/UnitAttendanceChart';
 import { Icon, isIconName } from '../components/ui/Icon';
 import { EmptyState, ErrorState, ProvenanceTags, Skeleton } from '../components/ui/States';
+import { getEnv } from '../config/env';
+import { useLocationSelection } from '../features/location/useLocation';
 import {
   useUnitAttendanceHistory,
   useUnitDetail,
@@ -13,9 +16,12 @@ import {
 import {
   buildRouteUrl,
   buildTelHref,
+  formatDisplayName,
   formatInt,
   formatMovementLabel,
+  formatOpenStatus,
   formatPct,
+  formatTodayLabel,
   formatUnitUpdatedLabel,
 } from '../utils/format';
 
@@ -24,13 +30,20 @@ const SERVICE_CATEGORIES = ['Todos', 'Consultas', 'Prevenção', 'Procedimentos'
 export function UnitDetailPage() {
   const { cnes } = useParams<{ cnes?: string }>();
   const navigate = useNavigate();
+  const { isMock } = getEnv();
+  const { location } = useLocationSelection();
   const [selectedServiceCategory, setSelectedServiceCategory] = useState<string>('Todos');
   const [hoveredDay, setHoveredDay] = useState<string | null>(null);
 
-  const unitsListQuery = useUnitsList();
+  const unitsListQuery = useUnitsList({ city_ibge: location.ibgeCode });
   const units = unitsListQuery.data?.items ?? [];
 
-  // Rota `/unidades` sem `:cnes` redireciona para a primeira unidade (Q3).
+  // Em modo API real, nunca permanecer no CNES fictício 9990001 quando já há unidades reais carregadas.
+  if (!isMock && cnes === '9990001' && units[0] && units[0].cnes_code !== '9990001') {
+    return <Navigate to={`/unidades/${units[0].cnes_code}`} replace />;
+  }
+
+  // Rota `/unidades` sem `:cnes` redireciona para a primeira unidade do município selecionado (Q3 / Card 4).
   if (!cnes) {
     if (unitsListQuery.isLoading) {
       return (
@@ -41,8 +54,30 @@ export function UnitDetailPage() {
         </div>
       );
     }
-    const targetCnes = units[0]?.cnes_code ?? '9990001';
-    return <Navigate to={`/unidades/${targetCnes}`} replace />;
+    if (units[0]) {
+      return <Navigate to={`/unidades/${units[0].cnes_code}`} replace />;
+    }
+    if (isMock) {
+      return <Navigate to="/unidades/9990001" replace />;
+    }
+    return (
+      <div className="units-page">
+        <div className="unit-content section-width" style={{ paddingTop: 40 }}>
+          {unitsListQuery.isError ? (
+            <ErrorState
+              error={unitsListQuery.error}
+              onRetry={() => void unitsListQuery.refetch()}
+              fallbackTitle={`Não foi possível carregar as unidades de ${location.cityName} (${location.uf})`}
+            />
+          ) : (
+            <EmptyState
+              title={`Nenhuma unidade encontrada em ${location.cityName} (${location.uf})`}
+              description="Selecione outro município ou estado no menu de localização superior."
+            />
+          )}
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -82,6 +117,12 @@ function UnitDetailContent({
   const historyQuery = useUnitAttendanceHistory(cnes, 7);
   const servicesQuery = useUnitServices(cnes, selectedServiceCategory);
   const staffQuery = useUnitStaff(cnes);
+  const [selectorOpen, setSelectorOpen] = useState(false);
+  const [highlightedIndex, setHighlightedIndex] = useState(0);
+  const selectorRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const optionRefs = useRef<Array<HTMLLIElement | null>>([]);
+  const listboxId = useId();
 
   const unit = detailQuery.data;
   const metrics = metricsQuery.data;
@@ -89,14 +130,93 @@ function UnitDetailContent({
   const services = servicesQuery.data ?? [];
   const staff = staffQuery.data;
 
-  const selectorOptions =
-    units.length > 0
-      ? units
-      : [
-          { cnes_code: '9990001', name: 'UBS República' },
-          { cnes_code: '9990002', name: 'UBS Sé' },
-          { cnes_code: '9990003', name: 'UBS Santa Cecília' },
-        ];
+  // A unidade aberta sempre aparece no seletor (ela pode não estar na 1ª página da lista).
+  const selectorOptions: { cnes_code: string; name: string }[] = units.some(
+    (u) => u.cnes_code === cnes,
+  )
+    ? units
+    : [{ cnes_code: cnes, name: unit?.name ?? `CNES ${cnes}` }, ...units];
+
+  const selectedIndex = Math.max(
+    0,
+    selectorOptions.findIndex((u) => u.cnes_code === cnes),
+  );
+  const selectedOption = selectorOptions[selectedIndex];
+  const selectedLabel = selectedOption ? formatDisplayName(selectedOption.name) : `CNES ${cnes}`;
+
+  useEffect(() => {
+    if (!selectorOpen) return;
+    const onDocMouseDown = (e: MouseEvent) => {
+      if (selectorRef.current && !selectorRef.current.contains(e.target as Node)) {
+        setSelectorOpen(false);
+      }
+    };
+    const onDocKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setSelectorOpen(false);
+        triggerRef.current?.focus();
+      }
+    };
+    document.addEventListener('mousedown', onDocMouseDown);
+    document.addEventListener('keydown', onDocKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', onDocMouseDown);
+      document.removeEventListener('keydown', onDocKeyDown);
+    };
+  }, [selectorOpen]);
+
+  useEffect(() => {
+    if (!selectorOpen) return;
+    const el = optionRefs.current[highlightedIndex];
+    if (el && typeof el.scrollIntoView === 'function') {
+      el.scrollIntoView({ block: 'nearest' });
+    }
+  }, [selectorOpen, highlightedIndex]);
+
+  const openSelector = (initialIndex = selectedIndex) => {
+    setHighlightedIndex(initialIndex);
+    setSelectorOpen(true);
+  };
+
+  const handleSelectOption = (nextCnes: string) => {
+    setSelectorOpen(false);
+    onSelectUnit(nextCnes);
+    triggerRef.current?.focus();
+  };
+
+  const handleTriggerKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>) => {
+    if (selectorOptions.length === 0) return;
+    if (!selectorOpen) {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        openSelector(selectedIndex);
+      }
+      return;
+    }
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setHighlightedIndex((prev) => (prev + 1) % selectorOptions.length);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setHighlightedIndex((prev) => (prev - 1 + selectorOptions.length) % selectorOptions.length);
+    } else if (e.key === 'Home') {
+      e.preventDefault();
+      setHighlightedIndex(0);
+    } else if (e.key === 'End') {
+      e.preventDefault();
+      setHighlightedIndex(selectorOptions.length - 1);
+    } else if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      const chosen = selectorOptions[highlightedIndex];
+      if (chosen) handleSelectOption(chosen.cnes_code);
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      setSelectorOpen(false);
+    } else if (e.key === 'Tab') {
+      setSelectorOpen(false);
+    }
+  };
 
   return (
     <div className="units-page">
@@ -116,20 +236,68 @@ function UnitDetailContent({
                 próximas.
               </p>
             </div>
-            <div className="unit-selector">
-              <Icon name="search" size={18} />
-              <select
-                value={cnes}
-                onChange={(e) => onSelectUnit(e.target.value)}
+            <div
+              ref={selectorRef}
+              className={selectorOpen ? 'unit-selector open' : 'unit-selector'}
+            >
+              <button
+                ref={triggerRef}
+                type="button"
+                className="unit-selector-trigger"
                 aria-label="Selecionar unidade"
+                aria-haspopup="listbox"
+                aria-expanded={selectorOpen}
+                aria-controls={listboxId}
+                aria-activedescendant={
+                  selectorOpen && selectorOptions[highlightedIndex]
+                    ? `${listboxId}-option-${selectorOptions[highlightedIndex]!.cnes_code}`
+                    : undefined
+                }
+                onClick={() => (selectorOpen ? setSelectorOpen(false) : openSelector())}
+                onKeyDown={handleTriggerKeyDown}
               >
-                {selectorOptions.map((u) => (
-                  <option key={u.cnes_code} value={u.cnes_code}>
-                    {u.name}
-                  </option>
-                ))}
-              </select>
-              <Icon name="chevron" size={15} />
+                <span>{selectedLabel}</span>
+                <Icon name="chevron-down" size={15} />
+              </button>
+
+              {selectorOpen && (
+                <ul
+                  id={listboxId}
+                  role="listbox"
+                  aria-label="Unidades de saúde"
+                  className="unit-selector-menu"
+                  tabIndex={-1}
+                >
+                  {selectorOptions.map((u, idx) => {
+                    const isSelected = u.cnes_code === cnes;
+                    const isHighlighted = idx === highlightedIndex;
+                    return (
+                      <li
+                        key={u.cnes_code}
+                        ref={(el) => {
+                          optionRefs.current[idx] = el;
+                        }}
+                        id={`${listboxId}-option-${u.cnes_code}`}
+                        role="option"
+                        aria-selected={isSelected}
+                        className={[
+                          'unit-selector-option',
+                          isSelected ? 'selected' : '',
+                          isHighlighted ? 'highlighted' : '',
+                        ]
+                          .filter(Boolean)
+                          .join(' ')}
+                        onMouseEnter={() => setHighlightedIndex(idx)}
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => handleSelectOption(u.cnes_code)}
+                      >
+                        <span>{formatDisplayName(u.name)}</span>
+                        {isSelected && <Icon name="check" size={15} />}
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
             </div>
           </div>
         </div>
@@ -150,12 +318,12 @@ function UnitDetailContent({
               <Icon name="hospital" size={28} />
             </div>
             <div className="unit-identity">
-              <span className={unit.is_open ? 'open-badge' : 'open-badge closed'}>
-                <i /> {unit.is_open ? 'Aberta agora' : 'Fechada'}
+              <span className={formatOpenStatus(unit.is_open).badgeClass}>
+                <i /> {formatOpenStatus(unit.is_open).label}
               </span>
-              <h2>{unit.name}</h2>
+              <h2>{formatDisplayName(unit.name)}</h2>
               <p>
-                <Icon name="pin" size={15} /> {unit.address}, {unit.city}
+                <Icon name="pin" size={15} /> {formatDisplayName(unit.address)}, {unit.city}
               </p>
             </div>
             <div className="unit-actions">
@@ -274,46 +442,11 @@ function UnitDetailContent({
                 />
               </div>
             ) : (
-              <>
-                <div
-                  className="flow-chart"
-                  role="list"
-                  aria-label="Atendimentos nos últimos 7 dias"
-                >
-                  {history.days.map((d) => {
-                    const isHovered = hoveredDay === d.date;
-                    return (
-                      <div
-                        key={d.date}
-                        role="listitem"
-                        tabIndex={0}
-                        className="flow-bar"
-                        title={`${d.weekday_label}: ${d.attendances} atendimentos`}
-                        aria-label={`${d.weekday_label}: ${d.attendances} atendimentos`}
-                        onMouseEnter={() => onHoverDay(d.date)}
-                        onMouseLeave={() => onHoverDay(null)}
-                        onFocus={() => onHoverDay(d.date)}
-                        onBlur={() => onHoverDay(null)}
-                      >
-                        <span>{isHovered ? `${d.attendances} atend.` : d.attendances}</span>
-                        <div>
-                          <i style={{ height: `${Math.min(100, d.attendances)}%` }} />
-                        </div>
-                        <small>{d.weekday_label}</small>
-                      </div>
-                    );
-                  })}
-                </div>
-                <div className="chart-summary">
-                  <span>
-                    <i /> {formatInt(history.total)} atendimentos na semana{' '}
-                    <ProvenanceTags meta={history.meta} />
-                  </span>
-                  <strong>
-                    {formatInt(history.daily_average)} <small>média por dia</small>
-                  </strong>
-                </div>
-              </>
+              <UnitAttendanceChart
+                history={history}
+                hoveredDay={hoveredDay}
+                onHoverDay={onHoverDay}
+              />
             )}
           </article>
 
@@ -321,10 +454,10 @@ function UnitDetailContent({
             <div className="unit-panel-head">
               <div>
                 <h2>Funcionamento hoje</h2>
-                <p>{unit?.today_label ?? 'Quarta-feira, 28 de maio'}</p>
+                <p>{unit?.today_label ?? formatTodayLabel()}</p>
               </div>
-              <span className={unit?.is_open !== false ? 'open-badge' : 'open-badge closed'}>
-                <i /> {unit?.is_open !== false ? 'Aberta' : 'Fechada'}
+              <span className={formatOpenStatus(unit?.is_open).badgeClass}>
+                <i /> {formatOpenStatus(unit?.is_open).label}
               </span>
             </div>
             <div className="hours">
@@ -333,24 +466,25 @@ function UnitDetailContent({
                 <small>HORÁRIO DE ATENDIMENTO</small>
               </span>
               <strong>
-                {unit
+                {unit?.opening_hours
                   ? `${unit.opening_hours.open} — ${unit.opening_hours.close}`
-                  : '07:00 — 19:00'}
+                  : (unit?.turno_atendimento ?? 'Não informado')}
               </strong>
             </div>
             <div className="operation-row">
               <span>Capacidade de atendimento</span>
-              <strong>{metrics ? `${metrics.capacity_pct}%` : '72%'}</strong>
+              <strong>{metrics ? `${metrics.capacity_pct}%` : 'Não informado'}</strong>
             </div>
             <div className="capacity">
-              <i style={{ width: `${metrics?.capacity_pct ?? 72}%` }} />
+              <i style={{ width: `${metrics?.capacity_pct ?? 0}%` }} />
             </div>
             <div className="best-time">
               <Icon name="check" size={17} />
               <div>
                 <strong>Melhor horário para ir</strong>
                 <span>
-                  {metrics?.best_time_hint ?? 'Entre 14h e 16h, com menor tempo de espera.'}
+                  {metrics?.best_time_hint ??
+                    'Sem dados de movimento para esta unidade. Ligue antes de ir.'}
                 </span>
               </div>
             </div>
@@ -469,7 +603,7 @@ function UnitDetailContent({
                     <small>profissionais</small>
                   </span>
                   <span>
-                    <strong>{formatInt(staff.rooms)}</strong>
+                    <strong>{staff.rooms !== null ? formatInt(staff.rooms) : '—'}</strong>
                     <small>consultórios</small>
                   </span>
                   <span>
@@ -495,14 +629,14 @@ function UnitDetailContent({
               <Icon name="phone" size={16} />
               <span>
                 <small>TELEFONE</small>
-                {unit?.phone ?? '(11) 3333-0180'}
+                {unit?.phone ?? 'Não informado'}
               </span>
             </p>
             <p>
               <Icon name="clock" size={16} />
               <span>
                 <small>ATUALIZAÇÃO DOS DADOS</small>
-                {unit ? formatUnitUpdatedLabel(unit.data_updated_at) : 'Hoje, às 08:42'}
+                {unit ? formatUnitUpdatedLabel(unit.data_updated_at) : '—'}
               </span>
             </p>
             <p>

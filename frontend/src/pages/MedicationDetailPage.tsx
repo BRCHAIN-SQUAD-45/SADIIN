@@ -2,11 +2,17 @@ import { Link, useParams } from 'react-router-dom';
 import { Icon } from '../components/ui/Icon';
 import { ErrorState, ProvenanceTags, Skeleton } from '../components/ui/States';
 import { useMedicationDetail } from '../features/medications/useMedications';
-import { FALLBACK_CARD_IMAGE } from '../utils/format';
+import {
+  buildMedicationCardIllustration,
+  FALLBACK_CARD_IMAGE,
+  formatDisplayName,
+} from '../utils/format';
 
 export function MedicationDetailPage() {
   const { id = '' } = useParams<{ id: string }>();
   const { data: med, isLoading, isError, error, refetch } = useMedicationDetail(id);
+  const displayName = med ? formatDisplayName(med.name) : undefined;
+  const displaySubtitle = med ? formatDisplayName(med.subtitle) : undefined;
 
   return (
     <div className="directory-page">
@@ -14,15 +20,15 @@ export function MedicationDetailPage() {
         <div className="section-width">
           <div className="unit-breadcrumb">
             <Link to="/">Início</Link> <span>›</span> <Link to="/medicamentos">Medicamentos</Link>{' '}
-            <span>›</span> <span>{med?.name ?? 'Detalhes'}</span>
+            <span>›</span> <span>{displayName ?? 'Detalhes'}</span>
           </div>
           <div className="units-heading">
             <div>
               <span className="directory-kicker">
                 <Icon name="pill" size={17} /> GUIA DE MEDICAMENTOS
               </span>
-              <h1>{med?.name ?? 'Carregando medicamento...'}</h1>
-              <p>{med?.subtitle ?? 'Informações oficiais do bulário eletrônico.'}</p>
+              <h1>{displayName ?? 'Carregando medicamento...'}</h1>
+              <p>{displaySubtitle ?? 'Informações oficiais do bulário eletrônico.'}</p>
             </div>
             <Link to="/medicamentos" className="detail-back-link">
               Voltar para medicamentos
@@ -48,8 +54,8 @@ export function MedicationDetailPage() {
             <section className="unit-profile">
               <div className="detail-thumb">
                 <img
-                  src={med.image_url ?? FALLBACK_CARD_IMAGE}
-                  alt={med.image_alt ?? med.name}
+                  src={med.image_url ?? buildMedicationCardIllustration(med.tag)}
+                  alt={med.image_alt ?? displayName ?? med.name}
                   onError={(e) => {
                     e.currentTarget.src = FALLBACK_CARD_IMAGE;
                   }}
@@ -64,8 +70,8 @@ export function MedicationDetailPage() {
                   {med.adult_use && <span className="open-badge">Uso adulto</span>}
                   <ProvenanceTags meta={med.meta} />
                 </div>
-                <h2>{med.name}</h2>
-                <p>{med.subtitle}</p>
+                <h2>{displayName}</h2>
+                <p>{displaySubtitle}</p>
               </div>
               <div className="unit-actions">
                 {med.leaflet_url && (
@@ -78,6 +84,20 @@ export function MedicationDetailPage() {
                     <Icon name="database" size={16} /> Consultar bula oficial (ANVISA)
                   </a>
                 )}
+              </div>
+            </section>
+
+            <section
+              className="citizen-summary-bar"
+              aria-label="Resumo rápido ao cidadão (Referência Infomed / ANVISA)"
+            >
+              <div className="citizen-summary-item">
+                <small>SUBSTÂNCIA ATIVA / COMPOSIÇÃO</small>
+                <strong>{displaySubtitle || 'Consulte a bula oficial'}</strong>
+              </div>
+              <div className="citizen-summary-item">
+                <small>CATEGORIA REGULATÓRIA</small>
+                <strong>{med.tag}</strong>
               </div>
             </section>
 

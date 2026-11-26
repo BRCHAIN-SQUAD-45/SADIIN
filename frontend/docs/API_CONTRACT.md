@@ -70,7 +70,7 @@ Em respostas `4xx` ou `5xx`:
 
 ---
 
-## 2. Catálogo de Endpoints (18 Rotas)
+## 2. Catálogo de Endpoints
 
 ### 2.1 Sistema e Metadados
 
@@ -156,8 +156,7 @@ Alimenta a seção "Informação que vem de fontes oficiais" (`US-06.1`).
 }
 ```
 
-`suggestions` é opcional e retorna candidatos de autocompletar/correção ordenados por similaridade (`score` entre 0 e 1). `kind: "indication"` representa somente texto de indicação associado a medicamentos no CSV da ANVISA; não é um diagnóstico nem um item validado do catálogo de condições. A busca `/conditions` continua indisponível até integrar uma fonte clínica confiável.
-
+`suggestions` é opcional e retorna candidatos de autocompletar/correção ordenados por similaridade (`score` entre 0 e 1). `kind: "indication"` representa somente texto de indicação associado a medicamentos no CSV da ANVISA; não é um diagnóstico nem um item validado do catálogo de condições. A busca `/conditions` usa o catálogo Saúde de A a Z/CID-10; sugestões de indicação não substituem esse catálogo.
 ---
 
 ### 2.3 Medicamentos (`US-02.1`, `US-02.2`, `US-02.3`)
@@ -228,7 +227,7 @@ Retorna `MedicationDetail` (campos de `Medication` + `indications: string[]`, `c
 
 #### `GET /api/v1/conditions/suggestions?q=...`
 
-Retorna sugestões aproximadas de texto do campo `INDICACOES` do CSV ANVISA, com `kind: "indication"`. Essas sugestões são apenas referências de busca vinculadas a medicamentos; não substituem o catálogo clínico de doenças nem constituem diagnóstico. `GET /api/v1/conditions` e os detalhes continuam indisponíveis até integrar uma fonte clínica confiável.
+Retorna sugestões aproximadas de texto do campo `INDICACOES` do CSV ANVISA, com `kind: "indication"`. Essas sugestões são referências de busca vinculadas a medicamentos; não constituem diagnóstico nem substituem o catálogo de doenças do Saúde de A a Z/CID-10 disponível em `GET /api/v1/conditions`.
 
 ```json
 {

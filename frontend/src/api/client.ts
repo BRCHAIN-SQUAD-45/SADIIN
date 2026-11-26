@@ -17,6 +17,7 @@ export type ApiErrorCode =
   | 'NOT_FOUND' // 404
   | 'RATE_LIMITED' // 429
   | 'UPSTREAM_UNAVAILABLE' // 503
+  | 'SOURCE_UNAVAILABLE' // 501: o back-end ainda não tem fonte pública para este dado
   | 'TIMEOUT' // 504 ou timeout no cliente
   | 'INTERNAL' // 500 e demais 5xx
   | 'HTTP_ERROR' // outros 4xx
@@ -75,6 +76,7 @@ const DEFAULT_MESSAGES: Record<ApiErrorCode, string> = {
   NOT_FOUND: 'Não encontramos o que você procurou.',
   RATE_LIMITED: 'Muitas consultas em pouco tempo. Aguarde um instante e tente novamente.',
   UPSTREAM_UNAVAILABLE: 'Serviço temporariamente indisponível. Tente novamente em instantes.',
+  SOURCE_UNAVAILABLE: 'Esta informação ainda não está disponível nas fontes oficiais integradas.',
   TIMEOUT: 'A consulta demorou mais que o esperado. Tente novamente.',
   INTERNAL: 'Ocorreu um erro inesperado. Tente novamente mais tarde.',
   HTTP_ERROR: 'Não foi possível concluir a consulta.',
@@ -87,6 +89,7 @@ export function codeFromStatus(status: number): ApiErrorCode {
   if (status === 422 || status === 400) return 'VALIDATION_ERROR';
   if (status === 404) return 'NOT_FOUND';
   if (status === 429) return 'RATE_LIMITED';
+  if (status === 501) return 'SOURCE_UNAVAILABLE';
   if (status === 503) return 'UPSTREAM_UNAVAILABLE';
   if (status === 504) return 'TIMEOUT';
   if (status >= 500) return 'INTERNAL';

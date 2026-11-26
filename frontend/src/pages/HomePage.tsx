@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import type { SearchType } from '../api/types';
+import { NearbyUnitsMap } from '../components/map/NearbyUnitsMap';
 import { Icon, isIconName } from '../components/ui/Icon';
 import { EmptyState, ErrorState, ProvenanceTags, Skeleton } from '../components/ui/States';
 import { useRegionalDashboard } from '../features/dashboard/useRegionalDashboard';
-import { useLocationSelection } from '../features/location/useLocation';
+import { DEFAULT_LOCATION, useLocationSelection } from '../features/location/useLocation';
 import { useMeta } from '../features/meta/useMeta';
 import { useNews } from '../features/news/useNews';
 import { useGlobalSearch } from '../features/search/useGlobalSearch';
@@ -18,6 +19,7 @@ import {
   formatDistanceLabel,
   formatEstablishmentsShort,
   formatNewsDayMonth,
+  formatOpenStatus,
   formatPct,
   formatSignedPct,
 } from '../utils/format';
@@ -31,12 +33,21 @@ const SEARCH_TABS: { id: string; label: string; apiType: SearchType }[] = [
 
 const POPULAR_SEARCHES = ['Dengue', 'Dipirona', 'Vacina da gripe', 'Dor de cabeça'] as const;
 
+/** Título da notícia com link para a página oficial (abre em nova aba). Sem URL, só texto. */
+function NewsLink({ url, children }: { url?: string; children: ReactNode }) {
+  if (!url) return <>{children}</>;
+  return (
+    <a className="news-link" href={url} target="_blank" rel="noopener noreferrer">
+      {children}
+    </a>
+  );
+}
+
 export function HomePage() {
   const [selectedTab, setSelectedTab] = useState(SEARCH_TABS[0]!);
   const [queryText, setQueryText] = useState('');
   const [submittedQuery, setSubmittedQuery] = useState('');
   const [feedbackBanner, setFeedbackBanner] = useState('');
-  const [activePinCnes, setActivePinCnes] = useState<string | null>(null);
 
   const { location, selectLocation } = useLocationSelection();
   const [placeInput, setPlaceInput] = useState(location.label);
@@ -53,7 +64,7 @@ export function HomePage() {
     cityIbge: location.ibgeCode,
     enabled: effectiveSearchTerm.trim().length >= 2,
   });
-  const nearbyQuery = useNearbyUnits(location.lat, location.lng, 10);
+  const nearbyQuery = useNearbyUnits(location.lat, location.lng, 10, location.ibgeCode);
   const newsQuery = useNews(location.uf, location.ibgeCode);
   const dashboardQuery = useRegionalDashboard(location.uf, location.ibgeCode);
   const sourcesQuery = useSources();
@@ -89,14 +100,21 @@ export function HomePage() {
     );
   };
 
-  const establishmentsLabel = metaQuery.data
-    ? formatEstablishmentsShort(metaQuery.data.establishments_count)
-    : '452 mil';
-  const sourcesCountLabel = metaQuery.data ? `${metaQuery.data.sources_count} fontes` : '6 fontes';
+  // Sem dado (carregando, erro ou `null` vindo da fonte) mostramos "—", nunca um número inventado.
+  const establishmentsCount = metaQuery.data?.establishments_count;
+  const establishmentsLabel =
+    establishmentsCount != null ? formatEstablishmentsShort(establishmentsCount) : '—';
+  const sourcesCountLabel = metaQuery.data ? `${metaQuery.data.sources_count} fontes` : '—';
 
   const nearestUnit = nearbyQuery.data?.[0];
-  const mapUnits = nearbyQuery.data?.slice(0, 3) ?? [];
-  const pinClasses = ['pin-main', 'pin-second', 'pin-third'] as const;
+  const mapUnits = nearbyQuery.data?.slice(0, 6) ?? [];
+  // Sem coordenadas da cidade (IBGE não publica), centraliza na primeira UBS retornada.
+  const mapCenter =
+    location.lat !== null && location.lng !== null
+      ? { lat: location.lat, lng: location.lng, isUser: true }
+      : nearestUnit
+        ? { lat: nearestUnit.lat, lng: nearestUnit.lng, isUser: false }
+        : { lat: DEFAULT_LOCATION.lat!, lng: DEFAULT_LOCATION.lng!, isUser: false };
 
   const showSearchPanel =
     Boolean(feedbackBanner) || (debouncedText.trim().length >= 2 && searchQuery.data !== undefined);
@@ -117,6 +135,16 @@ export function HomePage() {
             Encontre informações sobre medicamentos, doenças, sintomas e serviços do SUS reunidas em
             um único lugar.
           </p>
+
+          {feedbackBanner && (
+            <div className="search-feedback" role="status">
+              <Icon name="check" size={17} />
+              {feedbackBanner}
+              <button type="button" aria-label="Limpar busca" onClick={clearSearch}>
+                <Icon name="close" size={15} />
+              </button>
+            </div>
+          )}
 
           <div className="search-box">
             <div className="search-tabs" role="tablist" aria-label="Filtrar tipo de busca">
@@ -145,6 +173,7 @@ export function HomePage() {
                 value={queryText}
                 onChange={(e) => {
                   setQueryText(e.target.value);
+                  setFeedbackBanner('');
                   if (!e.target.value.trim()) setSubmittedQuery('');
                 }}
                 placeholder="O que você procura? Ex.: dengue, dipirona, UBS..."
@@ -162,16 +191,6 @@ export function HomePage() {
               </button>
             ))}
           </div>
-
-          {feedbackBanner && (
-            <div className="search-feedback" role="status">
-              <Icon name="check" size={17} />
-              {feedbackBanner}
-              <button type="button" aria-label="Limpar busca" onClick={clearSearch}>
-                <Icon name="close" size={15} />
-              </button>
-            </div>
-          )}
 
           {showSearchPanel && searchQuery.data && (
             <div className="search-results-panel" role="region" aria-label="Resultados da pesquisa">
@@ -258,7 +277,7 @@ export function HomePage() {
                                 <strong>{u.name}</strong>
                                 <small>{u.address}</small>
                               </div>
-                              <span>{u.is_open ? 'Aberta agora' : 'Fechada'}</span>
+                              <span>{formatOpenStatus(u.is_open).label}</span>
                             </Link>
                           </li>
                         ))}
@@ -404,16 +423,16 @@ export function HomePage() {
                   </span>
                   <div>
                     <small>
-                      MAIS PRÓXIMA
+                      {/* Sem distância (cidade escolhida sem GPS) não dá para afirmar "mais próxima". */}
                       {nearestUnit.distance_m !== undefined
-                        ? ` • ${formatDistanceLabel(nearestUnit.distance_m)}`
-                        : ''}
+                        ? `MAIS PRÓXIMA • ${formatDistanceLabel(nearestUnit.distance_m)}`
+                        : `UNIDADE EM ${location.cityName.toUpperCase()}`}
                     </small>
                     <strong>{nearestUnit.name}</strong>
                     <p>{nearestUnit.address}</p>
                   </div>
-                  <span className={`open-badge${nearestUnit.is_open ? '' : ' closed'}`}>
-                    <i /> {nearestUnit.is_open ? 'Aberta agora' : 'Fechada'}
+                  <span className={formatOpenStatus(nearestUnit.is_open).badgeClass}>
+                    <i /> {formatOpenStatus(nearestUnit.is_open).label}
                   </span>
                 </div>
 
@@ -447,64 +466,12 @@ export function HomePage() {
             </Link>
           </div>
 
-          <div className="map" aria-label="Mapa ilustrativo com unidades próximas">
-            <div className="road r1" />
-            <div className="road r2" />
-            <div className="road r3" />
-            <div className="road r4" />
-            <div className="block b1" />
-            <div className="block b2" />
-            <div className="block b3" />
-            <div className="block b4" />
-            <div className="park" />
-
-            {(mapUnits.length > 0
-              ? mapUnits
-              : [
-                  { cnes_code: '9990001', name: 'UBS República', kind: 'ubs' as const },
-                  { cnes_code: '9990002', name: 'UBS Sé', kind: 'ubs' as const },
-                  { cnes_code: '9990003', name: 'UBS Santa Cecília', kind: 'hospital' as const },
-                ]
-            ).map((u, idx) => {
-              const pinClass = pinClasses[idx] ?? 'pin-third';
-              const isActive = activePinCnes === u.cnes_code;
-              return (
-                <span
-                  key={u.cnes_code}
-                  role="button"
-                  tabIndex={0}
-                  aria-label={u.name}
-                  className={`map-pin ${pinClass}`}
-                  onClick={() => setActivePinCnes(isActive ? null : u.cnes_code)}
-                  onFocus={() => setActivePinCnes(u.cnes_code)}
-                  onBlur={() => setActivePinCnes(null)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      setActivePinCnes(isActive ? null : u.cnes_code);
-                    }
-                  }}
-                >
-                  <Icon name="hospital" size={idx === 0 ? 21 : 17} />
-                  {isActive && <span className="pin-tooltip">{u.name}</span>}
-                </span>
-              );
-            })}
-
-            <span className="you">
-              <i />
-              Você está aqui
-            </span>
-
-            <div className="map-legend">
-              <span>
-                <i /> UBS
-              </span>
-              <span>
-                <i /> Hospital
-              </span>
-            </div>
-          </div>
+          <NearbyUnitsMap
+            units={mapUnits}
+            centerLat={mapCenter.lat}
+            centerLng={mapCenter.lng}
+            showUserMarker={mapCenter.isUser}
+          />
         </div>
       </section>
 
@@ -549,14 +516,15 @@ export function HomePage() {
             {newsQuery.data.featured && (
               <article className="news-featured">
                 {newsQuery.data.featured.image_url && (
-                  <img
-                    src={newsQuery.data.featured.image_url}
-                    alt="Pessoa usando máscara durante atendimento de saúde"
-                  />
+                  <img src={newsQuery.data.featured.image_url} alt="" />
                 )}
                 <div>
                   <span>{newsQuery.data.featured.category}</span>
-                  <h3>{newsQuery.data.featured.title}</h3>
+                  <h3>
+                    <NewsLink url={newsQuery.data.featured.url}>
+                      {newsQuery.data.featured.title}
+                    </NewsLink>
+                  </h3>
                   {newsQuery.data.featured.summary && <p>{newsQuery.data.featured.summary}</p>}
                   <small>{newsQuery.data.featured.source_label}</small>
                 </div>
@@ -573,7 +541,9 @@ export function HomePage() {
                     </span>
                     <div>
                       <small>{item.category}</small>
-                      <h3>{item.title}</h3>
+                      <h3>
+                        <NewsLink url={item.url}>{item.title}</NewsLink>
+                      </h3>
                       {item.summary && <p>{item.summary}</p>}
                     </div>
                   </article>

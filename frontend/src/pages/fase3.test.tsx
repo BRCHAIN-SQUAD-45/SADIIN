@@ -41,6 +41,13 @@ describe('Fase 3 — Medicamentos, Doenças e Sintomas e Detalhes da UBS', () =>
     expect(screen.getByRole('heading', { level: 2, name: 'Amoxicilina' })).toBeInTheDocument();
     expect(screen.getByText('6 conteúdos disponíveis')).toBeInTheDocument();
 
+    // Tags de alerta nos cards de medicamentos (Issue #13 — US-02.3)
+    const amoxCard = screen
+      .getByRole('heading', { level: 2, name: 'Amoxicilina' })
+      .closest('article')!;
+    expect(within(amoxCard).getByText('Uso adulto')).toBeInTheDocument();
+    expect(within(amoxCard).getByText('Requer receita')).toBeInTheDocument();
+
     // Filtra pela categoria Antibióticos (US-02.2)
     await user.click(screen.getByRole('tab', { name: 'Antibióticos' }));
     await waitFor(() => {
@@ -84,6 +91,13 @@ describe('Fase 3 — Medicamentos, Doenças e Sintomas e Detalhes da UBS', () =>
       await screen.findByRole('heading', { level: 1, name: 'Doenças e sintomas' }),
     ).toBeInTheDocument();
     expect(await screen.findByRole('heading', { level: 2, name: 'Dengue' })).toBeInTheDocument();
+
+    // Resumo de sintomas e tag CID-10 no card de doença (Issue #16 — US-03.3)
+    const dengueCard = screen
+      .getByRole('heading', { level: 2, name: 'Dengue' })
+      .closest('article')!;
+    expect(within(dengueCard).getByText('CID-10: A90')).toBeInTheDocument();
+    expect(within(dengueCard).getByText('Febre alta de início súbito')).toBeInTheDocument();
 
     // Filtra por Doenças respiratórias (US-03.2)
     await user.click(screen.getByRole('tab', { name: 'Doenças respiratórias' }));
@@ -141,8 +155,9 @@ describe('Fase 3 — Medicamentos, Doenças e Sintomas e Detalhes da UBS', () =>
     expect(within(metricsSection).getByText('Moderado')).toBeInTheDocument();
     expect(within(metricsSection).getByText('18.420')).toBeInTheDocument();
 
-    // Gráfico de 7 dias com soma exata da API = 463 e média = 66 (US-04.4)
+    // Gráfico de 7 dias com Recharts e soma exata da API = 463 e média = 66 (Issues #20 e #21 — US-04.4)
     expect(await screen.findByText(/463 atendimentos na semana/i)).toBeInTheDocument();
+    expect(screen.getByLabelText('Gráfico Recharts de atendimentos diários')).toBeInTheDocument();
     expect(screen.getByText('média por dia')).toBeInTheDocument();
     expect(screen.getByLabelText('Qui: 92 atendimentos')).toBeInTheDocument();
 
@@ -163,7 +178,14 @@ describe('Fase 3 — Medicamentos, Doenças e Sintomas e Detalhes da UBS', () =>
     expect(screen.getByText('profissionais')).toBeInTheDocument();
 
     // Seletor de unidade alterna para UBS Sé (9990002)
-    await user.selectOptions(screen.getByLabelText('Selecionar unidade'), '9990002');
+    const unitSelectorBtn = screen.getByRole('button', { name: 'Selecionar unidade' });
+    expect(unitSelectorBtn).toHaveAttribute('aria-haspopup', 'listbox');
+    expect(unitSelectorBtn).toHaveAttribute('aria-expanded', 'false');
+    await user.click(unitSelectorBtn);
+    expect(unitSelectorBtn).toHaveAttribute('aria-expanded', 'true');
+    const listbox = screen.getByRole('listbox', { name: 'Unidades de saúde' });
+    await user.click(within(listbox).getByRole('option', { name: 'UBS Sé' }));
+    expect(unitSelectorBtn).toHaveAttribute('aria-expanded', 'false');
     expect(await screen.findByRole('heading', { level: 2, name: 'UBS Sé' })).toBeInTheDocument();
     expect(await screen.findByText('3.190')).toBeInTheDocument();
   });

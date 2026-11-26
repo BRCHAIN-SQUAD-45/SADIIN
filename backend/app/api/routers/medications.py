@@ -15,14 +15,14 @@ from app.integrations.anvisa import (
 from app.integrations.bnafar import BnafarConector
 from app.integrations.geocoding import municipio_por_coordenadas
 from app.integrations.ibge import IbgeConector
-from app.integrations.units import distancia_metros
+from app.integrations.units import distancia_metros, nome_unidade
 
 router = APIRouter(tags=["Medicamentos"])
 logger = logging.getLogger(__name__)
 
 
 def public_medication(record: dict, request: Request) -> dict:
-    return {
+    result = {
         key: value
         for key, value in record.items()
         if key
@@ -34,11 +34,12 @@ def public_medication(record: dict, request: Request) -> dict:
             "image_asset",
             "dosage_form_code",
         }
-    } | {
-        "image_url": str(
+    }
+    if record.get("image_asset"):
+        result["image_url"] = str(
             request.url_for("medication-assets", path=record["image_asset"])
         )
-    }
+    return result
 
 
 def _parse_date(value: object) -> date | None:
@@ -203,7 +204,7 @@ async def medication_availability(
             cnes_code,
             {
                 "cnes_code": cnes_code,
-                "name": row.get("nome_fantasia") or row.get("razao_social") or "Estabelecimento CNES",
+                "name": nome_unidade(row),
                 "address": _stock_address(row),
                 "city": row.get("municipio") or city["name"],
                 "uf": row.get("uf") or city["uf"],

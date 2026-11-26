@@ -241,6 +241,12 @@ class AnvisaCatalogTests(unittest.TestCase):
                 dashboard, "unidade_resumo", return_value={"cnes_code": "1234567"}
             ),
             patch.object(
+                dashboard, "sugerir_medicamentos", new=AsyncMock(return_value=[])
+            ),
+            patch.object(
+                dashboard, "sugerir_indicacoes", new=AsyncMock(return_value=[])
+            ),
+            patch.object(
                 dashboard,
                 "metadados_cnes",
                 return_value={

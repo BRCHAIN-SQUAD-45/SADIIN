@@ -1,16 +1,21 @@
 import asyncio
 import logging
 import os
+from datetime import datetime, timezone
 
 import httpx
 from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse
 
 from app.api.responses import api_error, source_unavailable
+from app.integrations.cache import TTLCache
 from app.integrations.cnes import CnesConector
 from app.integrations.cnes_resources import (
+    CACHE_TTL_SECONDS,
     buscar_producao_cnes,
     buscar_recurso_cnes,
+    buscar_recurso_cnes_com_competencia,
+    formatar_competencia,
     metadados_cnes_recursos,
 )
 from app.integrations.demas import buscar_servicos_cnes
@@ -22,7 +27,9 @@ from app.integrations.units import (
     buscar_todas_unidades_municipais,
     buscar_unidades_municipais,
     distancia_metros,
+    eh_unidade_basica,
     metadados_cnes,
+    nome_unidade,
     unidade_endereco,
     unidade_resumo,
     unidade_tipo,
@@ -32,6 +39,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["Unidades de saúde"])
 
 DEFAULT_CITY_IBGE = os.getenv("SADIIN_DEFAULT_CITY_IBGE", "3550308")
+_unit_detail_cache: TTLCache[tuple[dict, dict]] = TTLCache(CACHE_TTL_SECONDS)
 
 
 @router.get("")
@@ -80,8 +88,14 @@ async def list_units(
             or needle in str(unit.get("razao_social") or "").casefold()
             or needle in unidade_endereco(unit).casefold()
         ]
-    summaries = [summary for unit in units if (summary := unidade_resumo(unit, city)) is not None]
-    summaries.sort(key=lambda unit: unit["name"].casefold())
+    # Unidades básicas (UBS/AMA/USF) primeiro; depois ordem alfabética.
+    ranked = [
+        (not eh_unidade_basica(unit), summary["name"].casefold(), summary)
+        for unit in units
+        if (summary := unidade_resumo(unit, city)) is not None
+    ]
+    ranked.sort(key=lambda item: item[:2])
+    summaries = [summary for _, _, summary in ranked]
     return {
         "items": summaries[:page_size],
         "page": page,
@@ -126,7 +140,7 @@ async def get_nearby_units(
         logger.warning("Falha na busca de unidades próximas no CNES: %s", exc)
         return api_error(502, "UPSTREAM_UNAVAILABLE", "Não foi possível consultar unidades no CNES.", "/ubs/nearby")
 
-    summaries = []
+    ranked = []
     for unit in units:
         summary = unidade_resumo(unit, city)
         if summary is None:
@@ -136,19 +150,34 @@ async def get_nearby_units(
             if distance > radius_km * 1000:
                 continue
             summary["distance_m"] = distance
-        summaries.append(summary)
-    if lat is not None and lng is not None:
-        summaries.sort(key=lambda unit: unit.get("distance_m", float("inf")))
-    return summaries[:6]
+        ranked.append((not eh_unidade_basica(unit), summary))
+    # Dentro do raio: unidades básicas (UBS/AMA/USF) primeiro, cada grupo por distância
+    # (ou por nome, quando a busca é só pela cidade, sem GPS).
+    ranked.sort(
+        key=lambda item: (
+            item[0],
+            item[1].get("distance_m", float("inf")),
+            item[1]["name"].casefold(),
+        )
+    )
+    return [summary for _, summary in ranked[:6]]
+
+
+async def _load_unit_with_city(cnes: str) -> tuple[dict, dict]:
+    async with CnesConector() as cnes_api:
+        unit = await cnes_api.buscar_unidade(cnes)
+    async with IbgeConector() as ibge:
+        city = await ibge.buscar_municipio_por_codigo_cnes(unit["id_municipio"], unit["id_uf"])
+    return unit, city
 
 
 @router.get("/{cnes}")
 async def get_unit_detail(cnes: str):
     try:
-        async with CnesConector() as cnes_api:
-            unit = await cnes_api.buscar_unidade(cnes)
-        async with IbgeConector() as ibge:
-            city = await ibge.buscar_municipio_por_codigo_cnes(unit["id_municipio"], unit["id_uf"])
+        # Cadastro CNES + município IBGE mudam raramente: cache evita ~2-8 s a cada visita.
+        unit, city = await _unit_detail_cache.get_or_load(
+            cnes.strip(), lambda: _load_unit_with_city(cnes)
+        )
     except httpx.HTTPStatusError as exc:
         status = 404 if exc.response.status_code == 404 else 502
         message = "Estabelecimento não encontrado no CNES." if status == 404 else "Falha ao consultar o CNES."
@@ -159,7 +188,7 @@ async def get_unit_detail(cnes: str):
 
     return {
         "cnes_code": unit["cnes"],
-        "name": unit.get("nome_fantasia") or unit.get("razao_social") or "Estabelecimento CNES",
+        "name": nome_unidade(unit),
         "address": unidade_endereco(unit),
         "city": city["name"],
         "uf": city["uf"],
@@ -168,10 +197,27 @@ async def get_unit_detail(cnes: str):
         "is_open": None,
         "kind": unidade_tipo(unit.get("id_tipo_unidade")),
         "phone": unit.get("telefone"),
-        "data_updated_at": unit.get("data_atualizacao"),
+        "data_updated_at": _iso_datetime(unit.get("data_atualizacao")),
         "source_label": CNES_SOURCE,
         "turno_atendimento": unit.get("turno_atendimento"),
     }
+
+
+def _iso_datetime(value: str | None) -> str:
+    """Converte a data do CNES ("2026-02-27") para ISO-8601 com timezone, como pede o contrato.
+
+    Sem data na fonte, usa o momento da consulta (a ficha foi lida do CNES agora).
+    """
+    if value:
+        try:
+            parsed = datetime.fromisoformat(str(value))
+        except ValueError:
+            logger.info("data_atualizacao CNES em formato inesperado: %r", value)
+        else:
+            if parsed.tzinfo is None:
+                parsed = parsed.replace(tzinfo=timezone.utc)
+            return parsed.isoformat()
+    return datetime.now(timezone.utc).isoformat()
 
 
 def _unavailable(endpoint: str, message: str) -> JSONResponse:
@@ -233,7 +279,7 @@ async def get_unit_services(cnes: str):
 @router.get("/{cnes}/staff")
 async def get_unit_staff(cnes: str):
     try:
-        professionals = await buscar_recurso_cnes(cnes, "professionals")
+        competence, professionals = await buscar_recurso_cnes_com_competencia(cnes, "professionals")
     except (httpx.HTTPError, ValueError) as exc:
         logger.warning("Falha ao consultar profissionais da unidade %s: %s", cnes, exc)
         return api_error(
@@ -241,6 +287,13 @@ async def get_unit_staff(cnes: str):
             "UPSTREAM_UNAVAILABLE",
             "Não foi possível consultar os profissionais cadastrados no CNES.",
             f"/ubs/{cnes}/staff",
+        )
+    # Sem nenhuma competência publicada em 12 meses não há o que mostrar: 501 vira
+    # "Dados ainda não disponíveis" no front, em vez de reference_date "" (quebrava o Zod).
+    if competence is None:
+        return _unavailable(
+            f"/ubs/{cnes}/staff",
+            "O CNES não publicou profissionais desta unidade nos últimos 12 meses.",
         )
     active = [
         row
@@ -252,7 +305,8 @@ async def get_unit_staff(cnes: str):
         "professionals": len(active),
         "rooms": None,
         "esf_teams": len(teams),
-        "reference_date": str(max((row.get("nu_comp", 0) for row in active), default="")),
+        # Competência consultada, mesmo que nenhum profissional ativo atenda SUS nela.
+        "reference_date": formatar_competencia(competence),
         "meta": metadados_cnes_recursos(),
     }
 
