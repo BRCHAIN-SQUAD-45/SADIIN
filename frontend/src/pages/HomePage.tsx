@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import type { SearchType } from '../api/types';
 import { NearbyUnitsMap } from '../components/map/NearbyUnitsMap';
@@ -32,6 +32,16 @@ const SEARCH_TABS: { id: string; label: string; apiType: SearchType }[] = [
 ];
 
 const POPULAR_SEARCHES = ['Dengue', 'Dipirona', 'Vacina da gripe', 'Dor de cabeça'] as const;
+
+/** Título da notícia com link para a página oficial (abre em nova aba). Sem URL, só texto. */
+function NewsLink({ url, children }: { url?: string; children: ReactNode }) {
+  if (!url) return <>{children}</>;
+  return (
+    <a className="news-link" href={url} target="_blank" rel="noopener noreferrer">
+      {children}
+    </a>
+  );
+}
 
 export function HomePage() {
   const [selectedTab, setSelectedTab] = useState(SEARCH_TABS[0]!);
@@ -506,14 +516,15 @@ export function HomePage() {
             {newsQuery.data.featured && (
               <article className="news-featured">
                 {newsQuery.data.featured.image_url && (
-                  <img
-                    src={newsQuery.data.featured.image_url}
-                    alt="Pessoa usando máscara durante atendimento de saúde"
-                  />
+                  <img src={newsQuery.data.featured.image_url} alt="" />
                 )}
                 <div>
                   <span>{newsQuery.data.featured.category}</span>
-                  <h3>{newsQuery.data.featured.title}</h3>
+                  <h3>
+                    <NewsLink url={newsQuery.data.featured.url}>
+                      {newsQuery.data.featured.title}
+                    </NewsLink>
+                  </h3>
                   {newsQuery.data.featured.summary && <p>{newsQuery.data.featured.summary}</p>}
                   <small>{newsQuery.data.featured.source_label}</small>
                 </div>
@@ -530,7 +541,9 @@ export function HomePage() {
                     </span>
                     <div>
                       <small>{item.category}</small>
-                      <h3>{item.title}</h3>
+                      <h3>
+                        <NewsLink url={item.url}>{item.title}</NewsLink>
+                      </h3>
                       {item.summary && <p>{item.summary}</p>}
                     </div>
                   </article>

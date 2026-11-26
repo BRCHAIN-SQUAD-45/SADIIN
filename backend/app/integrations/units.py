@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import math
+import re
 import time
 from datetime import datetime, timezone
 
@@ -104,6 +105,90 @@ def unidade_endereco(unit: dict) -> str:
     return f"{street}, {neighborhood}" if street and neighborhood else street or neighborhood or "Endereço não informado"
 
 
+# --- Nomes legíveis (issue #62) ------------------------------------------------------
+# O CNES publica nome_fantasia em MAIÚSCULAS e sem acento ("UBS JARDIM ICARAI DR DANIEL").
+
+# Siglas que continuam em maiúsculas.
+_SIGLAS = {
+    "UBS", "UBSF", "AMA", "AME", "USF", "ESF", "UPA", "CAPS", "CAPSI", "CAPSAD", "AD",
+    "CEO", "SAE", "CTA", "CER", "CRST", "NASF", "SUS", "SAMU", "UTI", "PS", "PA", "HU",
+    "IST", "DST", "HIV", "AIDS", "CRI", "NIR", "SP", "RJ", "MG", "DF", "CS", "PSF", "UNIFESP", "USP",
+}
+# Conectivos em minúsculas (exceto no início do nome).
+_CONECTIVOS = {"de", "da", "do", "das", "dos", "e", "em", "na", "no", "nas", "nos", "a", "o", "d"}
+# Títulos abreviados.
+_TITULOS = {"DR": "Dr.", "DRA": "Dra.", "PROF": "Prof.", "PROFA": "Profa.", "STA": "Sta.", "STO": "Sto."}
+# Acentos das palavras mais comuns nos nomes de unidades (o CNES remove os acentos).
+_ACENTOS = {
+    "SAUDE": "Saúde", "BASICA": "Básica", "FAMILIA": "Família", "ATENCAO": "Atenção",
+    "ASSISTENCIA": "Assistência", "MEDICA": "Médica", "MEDICO": "Médico", "CLINICA": "Clínica",
+    "URGENCIA": "Urgência", "EMERGENCIA": "Emergência", "AMBULATORIO": "Ambulatório",
+    "ODONTOLOGICO": "Odontológico", "ODONTOLOGICA": "Odontológica", "PSICOSSOCIAL": "Psicossocial",
+    "ESPECIALIDADES": "Especialidades", "REABILITACAO": "Reabilitação", "MAE": "Mãe",
+    "CRIANCA": "Criança", "SAO": "São", "JOAO": "João", "JOSE": "José", "ANTONIO": "Antônio",
+    "CONCEICAO": "Conceição", "ESPERANCA": "Esperança", "PAZ": "Paz", "VILA": "Vila",
+    "MUNICIPIO": "Município", "PUBLICA": "Pública", "PUBLICO": "Público", "REGIAO": "Região",
+    "UNIAO": "União", "PRONTO": "Pronto", "ATENDIMENTO": "Atendimento",
+}
+_ROMANOS = re.compile(r"^(I{1,3}|IV|VI{0,3}|IX|XI{0,3}|XIV|XV)$")
+
+
+def _palavra_legivel(palavra: str, primeira: bool) -> str:
+    if not palavra:
+        return palavra
+    upper = palavra.upper()
+    if upper in _SIGLAS or _ROMANOS.match(upper) or any(ch.isdigit() for ch in palavra):
+        return upper
+    if upper in _TITULOS:
+        return _TITULOS[upper]
+    if upper in _ACENTOS:
+        return _ACENTOS[upper]
+    lower = palavra.lower()
+    if not primeira and lower in _CONECTIVOS:
+        return lower
+    return lower[:1].upper() + lower[1:]
+
+
+def formatar_nome_unidade(nome: str | None) -> str:
+    """`"UBS JARDIM ICARAI DR DANIEL"` -> `"UBS Jardim Icarai Dr. Daniel"`.
+
+    Mantém siglas (UBS, AMA, USF, CAPS...) e números romanos, deixa conectivos
+    (de, da, do...) em minúsculas e recoloca acentos de palavras comuns.
+    """
+    texto = " ".join(str(nome or "").split())
+    if not texto:
+        return ""
+    palavras = texto.split(" ")
+    resultado = []
+    for i, palavra in enumerate(palavras):
+        # Partes com hífen/barra são tratadas separadamente ("SANTA CECILIA-NORTE").
+        partes = re.split(r"([-/])", palavra)
+        resultado.append(
+            "".join(
+                parte if parte in {"-", "/"} else _palavra_legivel(parte, primeira=(i == 0 and j == 0))
+                for j, parte in enumerate(partes)
+            )
+        )
+    return " ".join(resultado)
+
+
+def nome_unidade(unit: dict) -> str:
+    return formatar_nome_unidade(unit.get("nome_fantasia") or unit.get("razao_social")) or "Estabelecimento CNES"
+
+
+# Tipos CNES de atenção básica: 1 = posto de saúde, 2 = centro de saúde/unidade básica.
+_TIPOS_BASICOS = {1, 2}
+_PREFIXOS_BASICOS = re.compile(r"^(UBS|UBSF|AMA|USF|ESF|PSF|POSTO DE SAUDE|CENTRO DE SAUDE)\b")
+
+
+def eh_unidade_basica(unit: dict) -> bool:
+    """UBS/AMA/USF e afins vêm primeiro nas listagens (porta de entrada do SUS)."""
+    if unit.get("id_tipo_unidade") in _TIPOS_BASICOS:
+        return True
+    nome = str(unit.get("nome_fantasia") or unit.get("razao_social") or "").upper().strip()
+    return bool(_PREFIXOS_BASICOS.match(nome))
+
+
 def unidade_tipo(tipo_unidade: int | None) -> str:
     if tipo_unidade in {1, 2, 15}:
         return "ubs"
@@ -120,7 +205,7 @@ def unidade_resumo(
         return None
     summary = {
         "cnes_code": unit["cnes"],
-        "name": unit.get("nome_fantasia") or unit.get("razao_social") or "Estabelecimento CNES",
+        "name": nome_unidade(unit),
         "address": unidade_endereco(unit),
         "city": city["name"],
         "uf": city["uf"],
