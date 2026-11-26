@@ -12,6 +12,7 @@ import {
   PortalMetaSchema,
   RegionalDashboardSchema,
   SearchResponseSchema,
+  SearchSuggestionsSchema,
   SourceListSchema,
   StateListSchema,
   UnitDetailSchema,
@@ -46,6 +47,14 @@ export const getSearch = (params: SearchQuery, signal?: AbortSignal) =>
     params: { ...params, type: params.type ?? 'all' },
     signal,
   });
+
+export const getConditionSuggestions = (q: string, signal?: AbortSignal) =>
+  apiGet(
+    'GET /conditions/suggestions',
+    '/conditions/suggestions',
+    SearchSuggestionsSchema,
+    { params: { q }, signal },
+  );
 
 export interface DirectoryQuery {
   q?: string;

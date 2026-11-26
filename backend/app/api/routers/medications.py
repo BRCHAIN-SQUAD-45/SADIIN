@@ -3,7 +3,7 @@ import math
 from datetime import date, datetime, timedelta, timezone
 
 import httpx
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Request
 
 from app.api.responses import api_error, source_unavailable
 from app.integrations.anvisa import (
@@ -19,6 +19,26 @@ from app.integrations.units import distancia_metros
 
 router = APIRouter(tags=["Medicamentos"])
 logger = logging.getLogger(__name__)
+
+
+def public_medication(record: dict, request: Request) -> dict:
+    return {
+        key: value
+        for key, value in record.items()
+        if key
+        not in {
+            "synonyms",
+            "regulatory_status",
+            "registration_number",
+            "updated_at",
+            "image_asset",
+            "dosage_form_code",
+        }
+    } | {
+        "image_url": str(
+            request.url_for("medication-assets", path=record["image_asset"])
+        )
+    }
 
 
 def _parse_date(value: object) -> date | None:
@@ -69,6 +89,7 @@ async def medication_categories():
 
 @router.get("")
 async def list_medications(
+    request: Request,
     q: str | None = None,
     category: str | None = None,
     page: int = Query(1, ge=1),
@@ -87,14 +108,7 @@ async def list_medications(
 
     start = (page - 1) * page_size
     return {
-        "items": [
-            {
-                key: value
-                for key, value in record.items()
-                if key not in {"synonyms", "regulatory_status", "registration_number", "updated_at"}
-            }
-            for record in records[start : start + page_size]
-        ],
+        "items": [public_medication(record, request) for record in records[start : start + page_size]],
         "page": page,
         "page_size": page_size,
         "total": len(records),
@@ -244,7 +258,7 @@ async def medication_availability(
 
 
 @router.get("/{medication_id}")
-async def get_medication_detail(medication_id: str):
+async def get_medication_detail(medication_id: str, request: Request):
     endpoint = f"/medications/{medication_id}"
     try:
         medication = await buscar_medicamento(medication_id)
@@ -259,11 +273,7 @@ async def get_medication_detail(medication_id: str):
     if medication is None:
         return api_error(404, "NOT_FOUND", "Medicamento não encontrado no catálogo da ANVISA.", endpoint)
 
-    return {
-        key: value
-        for key, value in medication.items()
-        if key not in {"synonyms", "regulatory_status", "registration_number", "updated_at"}
-    } | {
+    return public_medication(medication, request) | {
         "meta": {
             "source": ANVISA_SOURCE,
             "fetched_at": datetime.now(timezone.utc).isoformat(),

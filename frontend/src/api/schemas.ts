@@ -185,10 +185,25 @@ export const SearchFallbackSchema = z.object({
   message: z.string(),
 });
 
+export const SearchSuggestionSchema = z.object({
+  id: z.string(),
+  label: z.string(),
+  kind: z.enum(['medication', 'indication']),
+  score: z.number().min(0).max(1),
+});
+
+export const SearchSuggestionsSchema = z.object({
+  query: z.string(),
+  suggestions: z.array(SearchSuggestionSchema),
+  meta: ProvenanceMetaSchema,
+});
+
 /** Resposta de `GET /search`. */
 export const SearchResponseSchema = z.object({
   query: z.string(),
   matched_term: z.string().optional(),
+  suggestions: z.array(SearchSuggestionSchema).optional(),
+  warnings: z.array(z.object({ source: z.string(), message: z.string() })).optional(),
   intent: z.enum(['medication', 'condition', 'unit', 'unknown']),
   confidence: z.number().min(0).max(1),
   fallback: SearchFallbackSchema.nullable(),

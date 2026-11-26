@@ -1,6 +1,8 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 import logging
+from pathlib import Path
 
 from app.api.responses import api_error
 # Importação de todos os roteadores
@@ -9,6 +11,11 @@ from app.api.routers import meta, dashboard, medications, conditions, ubs, locat
 logger = logging.getLogger(__name__)
 
 app = FastAPI()
+app.mount(
+    "/assets/medications",
+    StaticFiles(directory=Path(__file__).resolve().parent / "static" / "medications"),
+    name="medication-assets",
+)
 
 # Configuração de CORS (Liberando o Front-end React/Vite)
 app.add_middleware(
