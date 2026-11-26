@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { UnitAttendanceChart } from '../components/charts/UnitAttendanceChart';
 import { Icon, isIconName } from '../components/ui/Icon';
@@ -117,6 +117,12 @@ function UnitDetailContent({
   const historyQuery = useUnitAttendanceHistory(cnes, 7);
   const servicesQuery = useUnitServices(cnes, selectedServiceCategory);
   const staffQuery = useUnitStaff(cnes);
+  const [selectorOpen, setSelectorOpen] = useState(false);
+  const [highlightedIndex, setHighlightedIndex] = useState(0);
+  const selectorRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const optionRefs = useRef<Array<HTMLLIElement | null>>([]);
+  const listboxId = useId();
 
   const unit = detailQuery.data;
   const metrics = metricsQuery.data;
@@ -130,6 +136,87 @@ function UnitDetailContent({
   )
     ? units
     : [{ cnes_code: cnes, name: unit?.name ?? `CNES ${cnes}` }, ...units];
+
+  const selectedIndex = Math.max(
+    0,
+    selectorOptions.findIndex((u) => u.cnes_code === cnes),
+  );
+  const selectedOption = selectorOptions[selectedIndex];
+  const selectedLabel = selectedOption ? formatDisplayName(selectedOption.name) : `CNES ${cnes}`;
+
+  useEffect(() => {
+    if (!selectorOpen) return;
+    const onDocMouseDown = (e: MouseEvent) => {
+      if (selectorRef.current && !selectorRef.current.contains(e.target as Node)) {
+        setSelectorOpen(false);
+      }
+    };
+    const onDocKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setSelectorOpen(false);
+        triggerRef.current?.focus();
+      }
+    };
+    document.addEventListener('mousedown', onDocMouseDown);
+    document.addEventListener('keydown', onDocKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', onDocMouseDown);
+      document.removeEventListener('keydown', onDocKeyDown);
+    };
+  }, [selectorOpen]);
+
+  useEffect(() => {
+    if (!selectorOpen) return;
+    const el = optionRefs.current[highlightedIndex];
+    if (el && typeof el.scrollIntoView === 'function') {
+      el.scrollIntoView({ block: 'nearest' });
+    }
+  }, [selectorOpen, highlightedIndex]);
+
+  const openSelector = (initialIndex = selectedIndex) => {
+    setHighlightedIndex(initialIndex);
+    setSelectorOpen(true);
+  };
+
+  const handleSelectOption = (nextCnes: string) => {
+    setSelectorOpen(false);
+    onSelectUnit(nextCnes);
+    triggerRef.current?.focus();
+  };
+
+  const handleTriggerKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>) => {
+    if (selectorOptions.length === 0) return;
+    if (!selectorOpen) {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        openSelector(selectedIndex);
+      }
+      return;
+    }
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setHighlightedIndex((prev) => (prev + 1) % selectorOptions.length);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setHighlightedIndex((prev) => (prev - 1 + selectorOptions.length) % selectorOptions.length);
+    } else if (e.key === 'Home') {
+      e.preventDefault();
+      setHighlightedIndex(0);
+    } else if (e.key === 'End') {
+      e.preventDefault();
+      setHighlightedIndex(selectorOptions.length - 1);
+    } else if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      const chosen = selectorOptions[highlightedIndex];
+      if (chosen) handleSelectOption(chosen.cnes_code);
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      setSelectorOpen(false);
+    } else if (e.key === 'Tab') {
+      setSelectorOpen(false);
+    }
+  };
 
   return (
     <div className="units-page">
@@ -149,20 +236,68 @@ function UnitDetailContent({
                 próximas.
               </p>
             </div>
-            <div className="unit-selector">
-              <Icon name="search" size={18} />
-              <select
-                value={cnes}
-                onChange={(e) => onSelectUnit(e.target.value)}
+            <div
+              ref={selectorRef}
+              className={selectorOpen ? 'unit-selector open' : 'unit-selector'}
+            >
+              <button
+                ref={triggerRef}
+                type="button"
+                className="unit-selector-trigger"
                 aria-label="Selecionar unidade"
+                aria-haspopup="listbox"
+                aria-expanded={selectorOpen}
+                aria-controls={listboxId}
+                aria-activedescendant={
+                  selectorOpen && selectorOptions[highlightedIndex]
+                    ? `${listboxId}-option-${selectorOptions[highlightedIndex]!.cnes_code}`
+                    : undefined
+                }
+                onClick={() => (selectorOpen ? setSelectorOpen(false) : openSelector())}
+                onKeyDown={handleTriggerKeyDown}
               >
-                {selectorOptions.map((u) => (
-                  <option key={u.cnes_code} value={u.cnes_code}>
-                    {formatDisplayName(u.name)}
-                  </option>
-                ))}
-              </select>
-              <Icon name="chevron" size={15} />
+                <span>{selectedLabel}</span>
+                <Icon name="chevron-down" size={15} />
+              </button>
+
+              {selectorOpen && (
+                <ul
+                  id={listboxId}
+                  role="listbox"
+                  aria-label="Unidades de saúde"
+                  className="unit-selector-menu"
+                  tabIndex={-1}
+                >
+                  {selectorOptions.map((u, idx) => {
+                    const isSelected = u.cnes_code === cnes;
+                    const isHighlighted = idx === highlightedIndex;
+                    return (
+                      <li
+                        key={u.cnes_code}
+                        ref={(el) => {
+                          optionRefs.current[idx] = el;
+                        }}
+                        id={`${listboxId}-option-${u.cnes_code}`}
+                        role="option"
+                        aria-selected={isSelected}
+                        className={[
+                          'unit-selector-option',
+                          isSelected ? 'selected' : '',
+                          isHighlighted ? 'highlighted' : '',
+                        ]
+                          .filter(Boolean)
+                          .join(' ')}
+                        onMouseEnter={() => setHighlightedIndex(idx)}
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => handleSelectOption(u.cnes_code)}
+                      >
+                        <span>{formatDisplayName(u.name)}</span>
+                        {isSelected && <Icon name="check" size={15} />}
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
             </div>
           </div>
         </div>

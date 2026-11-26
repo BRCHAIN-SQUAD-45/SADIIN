@@ -14,6 +14,7 @@ export const ICON_NAMES = [
   'menu',
   'accessibility',
   'chevron',
+  'chevron-down',
   'trend',
   'people',
   'clock',
@@ -69,6 +70,7 @@ const PATHS: Record<IconName, ReactNode> = {
     </>
   ),
   chevron: <path d="m9 18 6-6-6-6" />,
+  'chevron-down': <path d="m6 9 6 6 6-6" />,
   trend: (
     <>
       <path d="m3 17 6-6 4 4 8-9" />

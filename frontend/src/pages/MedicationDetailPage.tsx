@@ -99,18 +99,6 @@ export function MedicationDetailPage() {
                 <small>CATEGORIA REGULATÓRIA</small>
                 <strong>{med.tag}</strong>
               </div>
-              <div className="citizen-summary-item">
-                <small>REGIME DE DISPENSAÇÃO</small>
-                <strong>
-                  {med.requires_prescription
-                    ? 'Venda sob prescrição médica'
-                    : 'Isento de prescrição (MIP)'}
-                </strong>
-              </div>
-              <div className="citizen-summary-item">
-                <small>FAIXA RECOMENDADA</small>
-                <strong>{med.adult_use ? 'Uso adulto' : 'Uso adulto e pediátrico'}</strong>
-              </div>
             </section>
 
             <section className="unit-details-grid">

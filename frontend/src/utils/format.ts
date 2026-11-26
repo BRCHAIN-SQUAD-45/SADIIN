@@ -166,7 +166,6 @@ const PRESERVED_ACRONYMS = new Set([
   'CTA',
   'APAE',
   'AME',
-  'PAI',
   'URSI',
   'NIR',
   'CER',
@@ -201,20 +200,26 @@ export function formatDisplayName(raw: string): string {
     return raw;
   }
 
+  // Separadores ("/" e "-") ficam como estão; cada parte é tratada como uma palavra
+  // (assim "AMA/UBS" vira "AMA/UBS" e não "Ama/ubs").
+  let wordIndex = 0;
   return trimmed
-    .split(/\s+/)
-    .map((word, idx) => {
-      const cleanUpper = word.toUpperCase();
+    .split(/(\s+|\/|-)/)
+    .map((part) => {
+      if (!part || /^(\s+|\/|-)$/.test(part)) return part;
+      const idx = wordIndex++;
+      const cleanUpper = part.toUpperCase();
       if (PRESERVED_ACRONYMS.has(cleanUpper)) {
         return cleanUpper;
       }
-      const lower = word.toLowerCase();
+      const lower = part.toLowerCase();
       if (idx > 0 && LOWER_PARTICLES.has(lower)) {
         return lower;
       }
       return lower.charAt(0).toUpperCase() + lower.slice(1);
     })
-    .join(' ');
+    .join('')
+    .replace(/\s+/g, ' ');
 }
 
 /** Imagem SVG local institucional caso uma URL externa falhe ou não exista na base oficial (regra 3.1). */

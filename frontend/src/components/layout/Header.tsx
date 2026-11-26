@@ -65,11 +65,9 @@ export function Header() {
     applyCity(ibgeCode);
   };
 
-  const handleCloseOrApplyPicker = () => {
-    if (draftUf !== location.uf && citiesQuery.data && citiesQuery.data.length > 0) {
-      applyCity(citiesQuery.data[0]!.ibge_code);
-      return;
-    }
+  // "Fechar" só fecha o painel: trocar de estado sem escolher a cidade não altera a localização.
+  const handleClosePicker = () => {
+    setDraftUf(location.uf);
     setPickerOpen(false);
   };
 
@@ -196,7 +194,7 @@ export function Header() {
               <button type="button" onClick={handleUseCurrentLocation}>
                 Usar GPS
               </button>
-              <button type="button" className="primary" onClick={handleCloseOrApplyPicker}>
+              <button type="button" className="primary" onClick={handleClosePicker}>
                 Fechar
               </button>
             </div>

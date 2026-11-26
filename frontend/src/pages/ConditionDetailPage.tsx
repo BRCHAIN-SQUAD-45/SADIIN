@@ -3,10 +3,59 @@ import { Icon } from '../components/ui/Icon';
 import { ErrorState, ProvenanceTags, Skeleton } from '../components/ui/States';
 import { useConditionDetail } from '../features/conditions/useConditions';
 import { FALLBACK_CARD_IMAGE } from '../utils/format';
+import { isEmergencyCondition } from '../utils/triage';
 
 export function ConditionDetailPage() {
   const { id = '' } = useParams<{ id: string }>();
   const { data: cond, isLoading, isError, error, refetch } = useConditionDetail(id);
+  // Emergências (AVC, infarto...) nunca sugerem autocuidado e mostram o 192 primeiro.
+  const isEmergency = cond ? isEmergencyCondition(cond) : false;
+
+  const primaryLevel = (
+    <article className="triage-level-card level-primary">
+      <span className="triage-level-badge">2. Atenção Primária (UBS / 136)</span>
+      <strong>
+        {isEmergency ? 'Acompanhamento depois do atendimento' : 'Sintomas persistentes'}
+      </strong>
+      <p>
+        {isEmergency ? (
+          <>
+            Depois do atendimento de emergência, procure a UBS para acompanhamento ou ligue para o{' '}
+            <strong>Disque Saúde 136</strong> para orientação.
+          </>
+        ) : (
+          <>
+            Procure a Unidade Básica de Saúde mais próxima ou ligue para o{' '}
+            <strong>Disque Saúde 136</strong> para orientação.
+          </>
+        )}
+      </p>
+    </article>
+  );
+
+  const emergencyLevel = (
+    <article className="triage-level-card level-emergency">
+      <span className="triage-level-badge">
+        {isEmergency ? '1' : '3'}. Urgência e Emergência (192)
+      </span>
+      <strong>
+        {isEmergency ? 'Procure ajuda imediatamente' : 'Sinais de alerta ou gravidade'}
+      </strong>
+      <p>
+        {isEmergency ? (
+          <>
+            Ligue <strong>192 (SAMU)</strong> ou vá agora à UPA ou ao Pronto-Socorro mais próximo.
+            Cada minuto conta.
+          </>
+        ) : (
+          <>
+            Em caso de falta de ar, febre alta contínua, dor intensa ou confusão, procure uma
+            UPA/Pronto-Socorro ou ligue <strong>192 (SAMU)</strong>.
+          </>
+        )}
+      </p>
+    </article>
+  );
 
   return (
     <div className="directory-page">
@@ -127,11 +176,19 @@ export function ConditionDetailPage() {
                 </div>
                 <p>
                   <Icon name="hospital" size={16} />
-                  <span>
-                    <small>UNIDADE BÁSICA DE SAÚDE (UBS)</small>
-                    Procure uma UBS se os sintomas persistirem ou se agravarem. Em caso de urgência,
-                    ligue 192 (SAMU).
-                  </span>
+                  {isEmergency ? (
+                    <span>
+                      <small>EMERGÊNCIA — LIGUE 192 (SAMU)</small>
+                      Esta condição exige atendimento imediato. Ligue 192 (SAMU) ou vá agora à UPA
+                      ou ao Pronto-Socorro mais próximo. Não espere os sintomas passarem.
+                    </span>
+                  ) : (
+                    <span>
+                      <small>UNIDADE BÁSICA DE SAÚDE (UBS)</small>
+                      Procure uma UBS se os sintomas persistirem ou se agravarem. Em caso de
+                      urgência, ligue 192 (SAMU).
+                    </span>
+                  )}
                 </p>
               </article>
             </section>
@@ -145,30 +202,25 @@ export function ConditionDetailPage() {
                 <h2>Qual serviço de saúde devo procurar?</h2>
               </div>
               <div className="triage-levels-grid">
-                <article className="triage-level-card level-selfcare">
-                  <span className="triage-level-badge">1. Autocuidado e Prevenção</span>
-                  <strong>Sintomas leves ou iniciais</strong>
-                  <p>
-                    Mantenha hidratação, repouso e siga as medidas de prevenção oficiais sem se
-                    automedicar.
-                  </p>
-                </article>
-                <article className="triage-level-card level-primary">
-                  <span className="triage-level-badge">2. Atenção Primária (UBS / 136)</span>
-                  <strong>Sintomas persistentes</strong>
-                  <p>
-                    Procure a Unidade Básica de Saúde mais próxima ou ligue para o{' '}
-                    <strong>Disque Saúde 136</strong> para orientação.
-                  </p>
-                </article>
-                <article className="triage-level-card level-emergency">
-                  <span className="triage-level-badge">3. Urgência e Emergência (192)</span>
-                  <strong>Sinais de alerta ou gravidade</strong>
-                  <p>
-                    Em caso de falta de ar, febre alta contínua, dor intensa ou confusão, procure
-                    uma UPA/Pronto-Socorro ou ligue <strong>192 (SAMU)</strong>.
-                  </p>
-                </article>
+                {isEmergency ? (
+                  <>
+                    {emergencyLevel}
+                    {primaryLevel}
+                  </>
+                ) : (
+                  <>
+                    <article className="triage-level-card level-selfcare">
+                      <span className="triage-level-badge">1. Autocuidado e Prevenção</span>
+                      <strong>Sintomas leves ou iniciais</strong>
+                      <p>
+                        Mantenha hidratação, repouso e siga as medidas de prevenção oficiais sem se
+                        automedicar.
+                      </p>
+                    </article>
+                    {primaryLevel}
+                    {emergencyLevel}
+                  </>
+                )}
               </div>
             </section>
 

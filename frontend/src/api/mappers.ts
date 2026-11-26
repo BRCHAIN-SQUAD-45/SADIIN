@@ -172,10 +172,11 @@ export function mapAttendanceHistoryToChartView(history: AttendanceHistory): Att
       date: d.date,
       weekdayLabel: d.weekday_label,
       attendances: d.attendances,
+      // Mínimo de 2% só para a barra continuar visível; não exagera meses com poucos atendimentos.
       heightPct:
         maxAttendances > 100
           ? d.attendances > 0
-            ? Math.max(8, Math.round((d.attendances / maxAttendances) * 100))
+            ? Math.max(2, Math.round((d.attendances / maxAttendances) * 100))
             : 0
           : Math.min(100, d.attendances),
       ariaLabel: `${d.weekday_label}: ${d.attendances} atendimentos`,

@@ -118,6 +118,8 @@ describe('Fase 2 — Layout global + Home idênticos ao protótipo', () => {
   it('/unidades/9990001 renderiza a ficha da unidade (nome no título e no seletor)', async () => {
     renderAt('/unidades/9990001');
     expect(await screen.findByRole('heading', { name: /UBS República/ })).toBeInTheDocument();
-    expect(screen.getByRole('combobox', { name: 'Selecionar unidade' })).toHaveValue('9990001');
+    expect(screen.getByRole('button', { name: 'Selecionar unidade' })).toHaveTextContent(
+      'UBS República',
+    );
   });
 });

@@ -11,6 +11,7 @@ import {
 import { mapAttendanceHistoryToChartView, mapUnitSummaryToPinView } from './mappers';
 import { ErrorState } from '../components/ui/States';
 import { formatDisplayName, formatOpenStatus, formatUnitUpdatedLabel } from '../utils/format';
+import { isEmergencyCondition } from '../utils/triage';
 
 /**
  * Integração front ↔ back (FastAPI): as amostras abaixo foram copiadas de respostas
@@ -185,6 +186,19 @@ describe('Status de funcionamento e datas', () => {
     );
     expect(formatDisplayName('ACEBROFILINA')).toBe('Acebrofilina');
     expect(formatDisplayName('UBS República')).toBe('UBS República');
+  });
+
+  it('formatDisplayName separa "/" e não trata "PAI" como sigla (revisão do PR #67)', () => {
+    expect(formatDisplayName('AMA/UBS VILA NOVA')).toBe('AMA/UBS Vila Nova');
+    expect(formatDisplayName('CASA DO PAI')).toBe('Casa do Pai');
+  });
+
+  it('emergências (AVC, infarto) são detectadas por CID-10 ou nome; gripe não é (revisão do PR #67)', () => {
+    expect(isEmergencyCondition({ id: 'x', popular_name: 'AVC', cid10_code: 'I64' })).toBe(true);
+    expect(isEmergencyCondition({ id: 'infarto', popular_name: 'Infarto agudo' })).toBe(true);
+    expect(isEmergencyCondition({ id: 'gripe', popular_name: 'Gripe', cid10_code: 'J11' })).toBe(
+      false,
+    );
   });
 
   it('escala proporcionalmente barras de atendimento quando produção mensal ultrapassa 100 (Card 4)', () => {

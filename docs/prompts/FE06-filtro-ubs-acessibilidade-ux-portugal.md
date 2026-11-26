@@ -1,7 +1,7 @@
 # Prompt FE06 — Filtro de UBS por UF/Município, Acessibilidade e UI/UX (SNS 24 / Infarmed)
 
 - **Responsável:** Lia (`@LiaCost`)
-- **Versão:** `v1.2`
+- **Versão:** `v1.3`
 - **Data:** 24/11/2026
 - **Cards / Issues Relacionados:** Card 4 (Filtro por Estados/Municípios e Redirecionamento da Aba UBS) e Card 6 (Benchmarking Portugal SNS 24 / Infarmed e Acessibilidade)
 
@@ -29,3 +29,4 @@
 - **`v1.0`:** Implementação inicial dos controles `A` / `A+` / `A++` (com escala base `1.0`), resumo *Infomed*, guia *SNS 24*, filtro de UBS por `city_ibge` e `rooms: null`.
 - **`v1.1`:** Ajuste da escala tipográfica padrão (`--font-scale: 1.3` como padrão `A`) a pedido da revisão visual, elevando `A+` (`1.45`) e `A++` (`1.6`).
 - **`v1.2`:** Correção do layout do `.site-header` em modo Alto Contraste + `A++` (`FE-F05`) e refinamento de espaçamentos verticais nos cards e na ficha de medicamentos (`FE-F06`).
+- **`v1.3`:** Revisão do PR #67: resumo do medicamento sem dados não confirmados (`FE-F07`), guia de atendimento com emergências em `utils/triage.ts` (`FE-F08`), escala de fonte `1.3` / `1.5` / `1.7` com rótulos reais e ajustes de cabeçalho e celular (`FE-F09`), botão "Fechar", `formatDisplayName` e altura mínima das barras (`FE-F10`).

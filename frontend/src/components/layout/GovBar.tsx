@@ -54,7 +54,7 @@ export function GovBar() {
             type="button"
             aria-pressed={a11y}
             onClick={() => setA11y(!a11y)}
-            title="Alternar modo de alto contraste e fonte ampliada (125%)"
+            title="Alternar modo de alto contraste e fonte ampliada (115%)"
           >
             <Icon name="accessibility" size={16} /> Acessibilidade
           </button>

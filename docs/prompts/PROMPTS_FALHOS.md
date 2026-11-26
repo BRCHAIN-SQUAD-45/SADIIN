@@ -66,6 +66,46 @@ Este documento registra os casos em que prompts de desenvolvimento geraram probl
 
 ---
 
+### FE-F07 — Resumo do medicamento (`FE06 v1.0`): informação clínica inventada a partir de campo fixo do back-end
+
+- **Data:** 25/11/2026 (revisão do PR #67)
+- **Prompt Relacionado:** [`FE06-filtro-ubs-acessibilidade-ux-portugal.md`](./FE06-filtro-ubs-acessibilidade-ux-portugal.md)
+- **O que pedimos:** Um resumo ao cidadão no padrão Infomed com "Regime de dispensação" e "Faixa recomendada".
+- **O que veio (Problema):** O back-end envia `adult_use: true` fixo para todo medicamento (`anvisa.py`), então a tela afirmava "Uso adulto" até para dipirona infantil. O "Isento de prescrição (MIP)" também deduzia um fato que o campo da ANVISA não confirma. Em um portal de saúde, dado inventado é o erro mais grave.
+- **O que mudamos (`FE06 v1.3`):** Removemos as duas linhas do resumo, que ficou só com substância ativa e categoria regulatória. **Lição:** nunca exibir como fato um campo que a fonte não garante; conferir de onde o dado vem antes de montar a interface. A etiqueta "Uso adulto" dos cards ainda depende do mesmo campo e deve ser tratada com o back-end.
+
+---
+
+### FE-F08 — Guia de atendimento (`FE06 v1.0`): "autocuidado" sugerido para doenças que são emergência
+
+- **Data:** 25/11/2026 (revisão do PR #67)
+- **Prompt Relacionado:** [`FE06-filtro-ubs-acessibilidade-ux-portugal.md`](./FE06-filtro-ubs-acessibilidade-ux-portugal.md)
+- **O que pedimos:** Um guia de 3 níveis (autocuidado, UBS, urgência) na ficha de qualquer doença.
+- **O que veio (Problema):** O guia era igual para todas as doenças e começava por "hidratação e repouso". Com o catálogo novo do back-end, apareceria também em AVC e infarto.
+- **O que mudamos (`FE06 v1.3`):** Criamos `src/utils/triage.ts` com a lista de emergências (CID-10 e nome). Nelas o autocuidado some, o 192 (SAMU) aparece primeiro e o card "Quando procurar atendimento" troca o texto. **Lição:** conteúdo de orientação clínica não pode ser genérico; a lista é inicial e precisa de validação clínica do squad.
+
+---
+
+### FE-F09 — Escala de fonte (`FE06 v1.1`): rótulos errados, títulos travados, rolagem horizontal e botões sumidos no celular
+
+- **Data:** 25/11/2026 (revisão do PR #67)
+- **Prompt Relacionado:** [`FE06-filtro-ubs-acessibilidade-ux-portugal.md`](./FE06-filtro-ubs-acessibilidade-ux-portugal.md)
+- **O que pedimos:** Tornar o antigo A++ o tamanho padrão (`1.3`) e subir A+ e A++ (`1.45` e `1.6`).
+- **O que veio (Problema):** Os botões diziam 100/115/130%, mas o valor real era cerca de 100/112/123%. Os tetos `min(..., 30px)` impediam o logo e o menu de crescer. Com A++ e alto contraste havia rolagem horizontal a 1024 px e os cartões do topo cobriam a busca. No celular, o CSS do protótipo escondia os botões de acessibilidade.
+- **O que mudamos (`FE06 v1.3`):** A+ passou a `1.5` e A++ a `1.7` (115% e 130% reais), removemos os tetos, os links do menu quebram de linha dentro do próprio nav, os cartões do hero somem abaixo de 1180 px e os botões voltam a aparecer no celular. **Lição:** o rótulo de um controle deve ser calculado a partir do valor real; e não aplicar `min()` como remendo de layout.
+
+---
+
+### FE-F10 — Seletor de localização e nomes (`FE06 v1.1`): "Fechar" trocava a cidade sozinho e `formatDisplayName` errava casos
+
+- **Data:** 25/11/2026 (revisão do PR #67)
+- **Prompt Relacionado:** [`FE06-filtro-ubs-acessibilidade-ux-portugal.md`](./FE06-filtro-ubs-acessibilidade-ux-portugal.md)
+- **O que pedimos:** Que o botão "Fechar" aplicasse a escolha quando só o estado fosse trocado, e que `formatDisplayName` normalizasse nomes em caixa alta.
+- **O que veio (Problema):** Mudar só o estado e clicar em "Fechar" levava à primeira cidade da lista sem a pessoa escolher. "AMA/UBS" virava "Ama/ubs" e "CASA DO PAI" virava "Casa do PAI" (porque "PAI" estava na lista de siglas). A altura mínima de 8% nas barras exagerava meses com poucos atendimentos.
+- **O que mudamos (`FE06 v1.3`):** "Fechar" só fecha e descarta o estado escolhido; a troca vale quando a cidade é escolhida. A função agora separa `/` e `-`, e "PAI" saiu das siglas. O mínimo das barras caiu para 2%. Há testes novos para esses casos.
+
+---
+
 ## Falhas Registradas na Integração Front ↔ Back (Responsável: Nícolas)
 
 ### INT-F01 — `contract:check` não testava o back-end real (`INT01 v1.0`)
