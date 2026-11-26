@@ -198,4 +198,24 @@ Este documento registra os casos em que prompts de desenvolvimento geraram probl
 
 ---
 
+### INT-F10 — Busca aproximada deixou toda busca lenta (`INT04 v1.0`)
+
+- **Data:** 26/11/2026
+- **Prompt Relacionado:** [`INT04-busca-tolerante-a-erros.md`](./INT04-busca-tolerante-a-erros.md)
+- **O que pedimos:** Completar a #64 a partir da busca aproximada do PR #70.
+- **O que veio (Problema):** Medindo antes de mexer, toda busca levava **10 a 30 s**, inclusive "paracetamol" escrito certo. As sugestões rodavam `SequenceMatcher` contra os 6.517 registros a cada requisição. Os testes passavam porque usavam catálogos de poucos itens.
+- **O que mudamos:** Índice de vocabulário montado uma vez por carga (`app/search/indice.py`). Ficou um teste de tempo com catálogo de 6.500 registros, para a lentidão não voltar escondida.
+
+---
+
+### INT-F11 — Faixa Unicode da regex salva como caracteres invisíveis (`INT04 v1.0`)
+
+- **Data:** 26/11/2026
+- **Prompt Relacionado:** [`INT04-busca-tolerante-a-erros.md`](./INT04-busca-tolerante-a-erros.md)
+- **O que pedimos:** Remover acentos no front com `/[\u0300-\u036f]/g`.
+- **O que veio (Problema):** Ao mover a função para outro arquivo, a faixa foi gravada como os próprios acentos combinantes, invisíveis. Funcionava, mas ficava ilegível e frágil para quem editasse depois. Mesmo tipo de falha do INT-F08.
+- **O que mudamos:** Restauramos o formato escapado e passamos a procurar acentos combinantes soltos em todos os `.ts`/`.tsx`.
+
+---
+
 > **Back-end e IA:** As falhas de prompts das camadas de Back-end e IA serão registradas pelos respectivos responsáveis em suas branches.

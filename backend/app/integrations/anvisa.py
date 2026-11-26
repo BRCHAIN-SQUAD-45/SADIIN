@@ -11,6 +11,7 @@ import unicodedata
 import httpx
 
 from app.search.fuzzy import normalize_search_text, rank_fuzzy_candidates
+from app.search.indice import IndiceBusca
 
 ANVISA_MEDICATIONS_URL = (
     "https://dados.anvisa.gov.br/dados/CONSULTAS/PRODUTOS/TA_CONSULTA_MEDICAMENTOS.CSV"
@@ -20,6 +21,9 @@ ANVISA_CACHE_TTL_SECONDS = 6 * 60 * 60
 logger = logging.getLogger(__name__)
 _cache: tuple[float, list[dict]] | None = None
 _cache_lock = asyncio.Lock()
+# Índice de busca do catálogo carregado (issue #64): (lista de registros, índice). Guarda a
+# própria lista e compara com "is": comparar id() falharia se o Python reaproveitasse o id.
+_indice_cache: tuple[list[dict], IndiceBusca] | None = None
 _STRENGTH_PATTERN = re.compile(
     r"\b\d+(?:[.,]\d+)?\s*(?:mcg|ug|mg|g|kg|ml|l|ui|%)"
     r"(?:\s*/\s*\d+(?:[.,]\d+)?\s*(?:mcg|ug|mg|g|kg|ml|l|ui))?\b"
@@ -326,6 +330,36 @@ async def _load_records() -> list[dict]:
         return records
 
 
+def _textos_pesquisaveis(record: dict) -> list[str]:
+    """Campos usados na busca exata por trecho (os mesmos de antes do índice)."""
+    textos = [record["name"], record["subtitle"], record["synonyms"], *record["indications"]]
+    for variant in record["variants"]:
+        textos.append(" ".join((variant["name"], variant["manufacturer"])))
+    return [t for t in textos if t]
+
+
+def _indice(records: list[dict]) -> IndiceBusca:
+    """Índice montado uma vez por carga do catálogo (antes: SequenceMatcher em tudo, a cada busca)."""
+    global _indice_cache
+    if _indice_cache is None or _indice_cache[0] is not records:
+        _indice_cache = (
+            records,
+            IndiceBusca(
+                (record["id"], [*_textos_pesquisaveis(record), record["active_ingredient"]])
+                for record in records
+            ),
+        )
+    return _indice_cache[1]
+
+
+def _rank(query: str, records: list[dict], limit: int) -> list[dict]:
+    return rank_fuzzy_candidates(
+        query,
+        ((record["id"], record["name"], _record_search_aliases(record)) for record in records),
+        limit=limit,
+    )
+
+
 async def listar_medicamentos(query: str | None, category: str | None) -> list[dict]:
     records = await _load_records()
     normalized_query = normalize_search_text(query or "")
@@ -342,41 +376,26 @@ async def listar_medicamentos(query: str | None, category: str | None) -> list[d
     if not normalized_query:
         return eligible
 
-    matches = [
-        record
-        for record in eligible
-        if (
-            normalized_query in normalize_search_text(record["name"])
-            or normalized_query in normalize_search_text(record["subtitle"])
-            or normalized_query in normalize_search_text(record["synonyms"])
-            or any(
-                normalized_query in normalize_search_text(indication)
-                for indication in record["indications"]
-            )
-            or any(
-                normalized_query in normalize_search_text(
-                    " ".join((variant["name"], variant["manufacturer"]))
-                )
-                for variant in record["variants"]
-            )
-        )
-    ]
+    indice = _indice(records)
+    com_trecho = indice.contem_trecho(normalized_query)
+    matches = [record for record in eligible if record["id"] in com_trecho]
     if matches:
-        return matches
+        # Nome igual ao digitado primeiro, depois nomes que começam com ele, depois o resto.
+        def prioridade(record: dict) -> tuple[int, int]:
+            nome = normalize_search_text(record["name"])
+            if nome == normalized_query:
+                return (0, len(nome))
+            if nome.startswith(normalized_query):
+                return (1, len(nome))
+            return (2, 0)
 
-    ranked = rank_fuzzy_candidates(
-        normalized_query,
-        (
-            (
-                record["id"],
-                record["name"],
-                _record_search_aliases(record),
-            )
-            for record in eligible
-        ),
-        limit=len(eligible),
-    )
-    records_by_id = {record["id"]: record for record in eligible}
+        return sorted(matches, key=prioridade)
+
+    # Sem trecho exato: ranking aproximado só entre os registros com palavras parecidas.
+    candidatos = indice.candidatos_aproximados(normalized_query)
+    elegiveis_candidatos = [record for record in eligible if record["id"] in candidatos]
+    ranked = _rank(normalized_query, elegiveis_candidatos, limit=len(elegiveis_candidatos))
+    records_by_id = {record["id"]: record for record in elegiveis_candidatos}
     return [records_by_id[item["id"]] for item in ranked]
 
 
@@ -394,14 +413,8 @@ def _record_search_aliases(record: dict) -> list[str]:
 
 async def sugerir_medicamentos(query: str, limit: int = 5) -> list[dict]:
     records = await _load_records()
-    ranked = rank_fuzzy_candidates(
-        query,
-        (
-            (record["id"], record["name"], _record_search_aliases(record))
-            for record in records
-        ),
-        limit=limit,
-    )
+    candidatos = _indice(records).candidatos_aproximados(query)
+    ranked = _rank(query, [record for record in records if record["id"] in candidatos], limit)
     return [{**item, "kind": "medication"} for item in ranked]
 
 

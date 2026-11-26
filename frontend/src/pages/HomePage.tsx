@@ -2,6 +2,8 @@ import { useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import type { SearchType } from '../api/types';
 import { NearbyUnitsMap } from '../components/map/NearbyUnitsMap';
+import { DidYouMean } from '../components/search/DidYouMean';
+import { foiCorrigido } from '../utils/busca';
 import { Icon, isIconName } from '../components/ui/Icon';
 import { EmptyState, ErrorState, ProvenanceTags, Skeleton } from '../components/ui/States';
 import { useRegionalDashboard } from '../features/dashboard/useRegionalDashboard';
@@ -196,7 +198,11 @@ export function HomePage() {
             <div className="search-results-panel" role="region" aria-label="Resultados da pesquisa">
               <div className="search-results-head">
                 <span>
-                  {searchQuery.data.matched_term ? (
+                  {foiCorrigido(searchQuery.data.query, searchQuery.data.matched_term) ? (
+                    <>
+                      Resultados para <strong>“{searchQuery.data.matched_term}”</strong>
+                    </>
+                  ) : searchQuery.data.matched_term ? (
                     <>
                       Termo reconhecido: <strong>{searchQuery.data.matched_term}</strong>
                     </>
@@ -211,6 +217,13 @@ export function HomePage() {
                   <Icon name="close" size={14} />
                 </button>
               </div>
+
+              <DidYouMean
+                query={searchQuery.data.query}
+                matchedTerm={searchQuery.data.matched_term}
+                suggestions={searchQuery.data.suggestions}
+                onPick={(termo) => submitSearch(termo)}
+              />
 
               {searchQuery.data.fallback ? (
                 <div className="search-fallback" role="alert">
