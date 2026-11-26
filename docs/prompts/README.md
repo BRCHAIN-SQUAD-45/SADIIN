@@ -14,5 +14,6 @@ Esta pasta armazena os prompts utilizados pelo **Squad 45 (SADIIN / BRchain)** s
 | **FE06** | [`FE06-filtro-ubs-acessibilidade-ux-portugal.md`](./FE06-filtro-ubs-acessibilidade-ux-portugal.md) | Cards 4 e 6 — Filtro de UBS por UF/município, acessibilidade `A/A+/A++` e UI/UX SNS 24/Infarmed | `v1.3` |
 | **INT01** | [`INT01-integracao-front-back.md`](./INT01-integracao-front-back.md) | Integração Front ↔ Back: verificação ao vivo das rotas, ajustes de contrato e tratamento de `501` | `v1.0` |
 | **INT02** | [`INT02-desempenho-ubs-e-noticias.md`](./INT02-desempenho-ubs-e-noticias.md) | Issues #62 e #57: ficha da UBS de ~30 s para < 1 s com cache e notícias oficiais do gov.br na Home | `v1.0` |
+| **INT03** | [`INT03-doencas-e-busca-global.md`](./INT03-doencas-e-busca-global.md) | Issues #43, #46 e #33: catálogo de doenças (Saúde de A a Z + CID-10) e busca global nos três catálogos | `v1.0` |
 
-> **Integração:** prompts `INT01` e `INT02` (Nícolas). **Back-end e IA:** Os prompts das integrações Python/FastAPI e RAG serão adicionados nas respectivas branches pelos responsáveis de Back-end e IA.
+> **Integração:** prompts `INT01`, `INT02` e `INT03` (Nícolas). **Back-end e IA:** Os prompts das integrações Python/FastAPI e RAG serão adicionados nas respectivas branches pelos responsáveis de Back-end e IA.
