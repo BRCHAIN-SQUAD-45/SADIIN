@@ -24,6 +24,7 @@ import httpx
 from app.data.doencas_az import TOPICOS, TopicoAZ
 from app.integrations import cid10
 from app.integrations.cache import TTLCache
+from app.search.fuzzy import rank_fuzzy_candidates
 
 logger = logging.getLogger(__name__)
 
@@ -123,19 +124,45 @@ def _bate_codigo(consulta: str, codigo: str) -> bool:
 
 def filtrar(q: str | None = None, categoria: str | None = None) -> list[dict]:
     termo = _sem_acento(q or "").strip()
-    resultado = []
-    for doenca in catalogo():
-        if categoria and categoria not in ("todos", "todas") and doenca["category_id"] != categoria:
-            continue
-        if termo:
-            palavras = termo.split()
-            if not (
-                all(p in _texto_busca(doenca) for p in palavras)
-                or _bate_codigo(termo, doenca["cid10_code"])
-            ):
-                continue
-        resultado.append(doenca)
-    return resultado
+    elegiveis = [
+        doenca
+        for doenca in catalogo()
+        if not categoria
+        or categoria in ("todos", "todas")
+        or doenca["category_id"] == categoria
+    ]
+    if not termo:
+        return elegiveis
+
+    palavras = termo.split()
+    resultado = [
+        doenca
+        for doenca in elegiveis
+        if all(palavra in _texto_busca(doenca) for palavra in palavras)
+        or _bate_codigo(termo, doenca["cid10_code"])
+    ]
+    if resultado or re.fullmatch(r"[a-z]\d{2,3}(?:\.\d{1,2})?", termo, re.IGNORECASE):
+        return resultado
+
+    correspondencias = rank_fuzzy_candidates(
+        termo,
+        (
+            (
+                doenca["id"],
+                doenca["popular_name"],
+                (
+                    *doenca["_topico"].sinonimos,
+                    doenca["subtitle"],
+                    doenca["tag"],
+                ),
+            )
+            for doenca in elegiveis
+        ),
+        limit=len(elegiveis),
+    )
+    ids_correspondentes = [correspondencia["id"] for correspondencia in correspondencias]
+    doencas_por_id = {doenca["id"]: doenca for doenca in elegiveis}
+    return [doencas_por_id[doenca_id] for doenca_id in ids_correspondentes]
 
 
 def por_id(doenca_id: str) -> dict | None:

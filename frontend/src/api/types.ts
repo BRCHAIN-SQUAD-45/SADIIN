@@ -16,6 +16,8 @@ import type {
   RegionalDashboardSchema,
   SearchFallbackSchema,
   SearchResponseSchema,
+  SearchSuggestionsSchema,
+  SearchSuggestionSchema,
   SourceItemSchema,
   StateItemSchema,
   UnitDetailSchema,
@@ -42,6 +44,8 @@ export type AttendanceHistory = z.infer<typeof AttendanceHistorySchema>;
 export type UnitService = z.infer<typeof UnitServiceSchema>;
 export type UnitStaff = z.infer<typeof UnitStaffSchema>;
 export type SearchFallback = z.infer<typeof SearchFallbackSchema>;
+export type SearchSuggestion = z.infer<typeof SearchSuggestionSchema>;
+export type SearchSuggestions = z.infer<typeof SearchSuggestionsSchema>;
 export type SearchResponse = z.infer<typeof SearchResponseSchema>;
 export type StateItem = z.infer<typeof StateItemSchema>;
 export type CityItem = z.infer<typeof CityItemSchema>;

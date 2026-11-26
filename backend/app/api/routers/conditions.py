@@ -4,14 +4,18 @@ Catálogo: tópicos do "Saúde de A a Z" do Ministério da Saúde vinculados à 
 Categoria = capítulo da CID-10. Sintomas, prevenção e tratamento vêm da página oficial de cada tópico.
 """
 
+import logging
 from datetime import datetime, timezone
 
+import httpx
 from fastapi import APIRouter, Query
 
 from app.api.responses import api_error
 from app.integrations import doencas
+from app.integrations.anvisa import ANVISA_SOURCE, sugerir_indicacoes
 
 router = APIRouter(tags=["Doenças e Sintomas"])
+logger = logging.getLogger(__name__)
 
 
 def _meta() -> dict:
@@ -45,6 +49,31 @@ async def list_conditions(
         "page_size": page_size,
         "total": len(encontrados),
         "meta": _meta(),
+    }
+
+
+@router.get("/suggestions")
+async def condition_search_suggestions(q: str = Query(..., min_length=2)):
+    try:
+        suggestions = await sugerir_indicacoes(q)
+    except httpx.HTTPError as exc:
+        logger.warning("Falha ao consultar indicações do CSV da ANVISA: %s", exc)
+        return api_error(
+            502,
+            "UPSTREAM_UNAVAILABLE",
+            "Não foi possível consultar os termos de indicação da ANVISA.",
+            "/conditions/suggestions",
+        )
+
+    return {
+        "query": q,
+        "suggestions": suggestions,
+        "meta": {
+            "source": ANVISA_SOURCE,
+            "fetched_at": datetime.now(timezone.utc).isoformat(),
+            "is_estimate": False,
+            "is_stale": False,
+        },
     }
 
 

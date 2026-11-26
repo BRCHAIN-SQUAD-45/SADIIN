@@ -70,7 +70,7 @@ Em respostas `4xx` ou `5xx`:
 
 ---
 
-## 2. Catálogo de Endpoints (18 Rotas)
+## 2. Catálogo de Endpoints
 
 ### 2.1 Sistema e Metadados
 
@@ -128,6 +128,16 @@ Alimenta a seção "Informação que vem de fontes oficiais" (`US-06.1`).
 {
   "query": "dor de cabeca",
   "matched_term": "Cefaleia",
+  "warnings": [],
+  "suggestions": [
+    { "id": "med-123", "label": "Dipirona", "kind": "medication", "score": 0.875 },
+    {
+      "id": "indication-cefaleia",
+      "label": "Alívio temporário de dores de cabeça",
+      "kind": "indication",
+      "score": 0.84
+    }
+  ],
   "intent": "condition",
   "confidence": 0.92,
   "fallback": null,
@@ -146,6 +156,7 @@ Alimenta a seção "Informação que vem de fontes oficiais" (`US-06.1`).
 }
 ```
 
+`suggestions` é opcional e retorna candidatos de autocompletar/correção ordenados por similaridade (`score` entre 0 e 1). `kind: "indication"` representa somente texto de indicação associado a medicamentos no CSV da ANVISA; não é um diagnóstico nem um item validado do catálogo de condições. A busca `/conditions` usa o catálogo Saúde de A a Z/CID-10; sugestões de indicação não substituem esse catálogo.
 ---
 
 ### 2.3 Medicamentos (`US-02.1`, `US-02.2`, `US-02.3`)
@@ -179,7 +190,23 @@ Alimenta a seção "Informação que vem de fontes oficiais" (`US-06.1`).
       "adult_use": true,
       "image_url": "https://...",
       "image_alt": "Comprimidos brancos, azuis e alaranjados",
-      "leaflet_url": "https://consultas.anvisa.gov.br/#/bulario/"
+      "leaflet_url": "https://consultas.anvisa.gov.br/#/bulario/",
+      "active_ingredient": "Dipirona",
+      "strength": "500 mg",
+      "dosage_form": "comprimidos",
+      "variant_count": 2,
+      "manufacturer_count": 2,
+      "variants": [
+        {
+          "id": "anvisa-product-id",
+          "name": "Dipirona 500 Mg Comprimidos",
+          "manufacturer": "Laboratório Exemplo",
+          "registration_number": "registro-anvisa",
+          "presentation": "500 mg · Comprimidos",
+          "leaflet_url": "https://consultas.anvisa.gov.br/#/medicamentos/processo/",
+          "requires_prescription": false
+        }
+      ]
     }
   ],
   "page": 1,
@@ -188,6 +215,8 @@ Alimenta a seção "Informação que vem de fontes oficiais" (`US-06.1`).
 }
 ```
 
+Os resultados do catálogo ANVISA são agrupados por princípio ativo, concentração e forma farmacêutica. `total` representa grupos, enquanto `variants` preserva os registros de cada fabricante para consulta. `image_url` aponta para uma ilustração local da API e `image_alt` informa que ela não representa uma embalagem comercial.
+
 #### `GET /api/v1/medications/{id}`
 
 Retorna `MedicationDetail` (campos de `Medication` + `indications: string[]`, `contraindications?: string[]`, `side_effects?: string[]`, `meta?: ProvenanceMeta`).
@@ -195,6 +224,30 @@ Retorna `MedicationDetail` (campos de `Medication` + `indications: string[]`, `c
 ---
 
 ### 2.4 Doenças e Sintomas (`US-03.1`, `US-03.2`, `US-03.3`)
+
+#### `GET /api/v1/conditions/suggestions?q=...`
+
+Retorna sugestões aproximadas de texto do campo `INDICACOES` do CSV ANVISA, com `kind: "indication"`. Essas sugestões são referências de busca vinculadas a medicamentos; não constituem diagnóstico nem substituem o catálogo de doenças do Saúde de A a Z/CID-10 disponível em `GET /api/v1/conditions`.
+
+```json
+{
+  "query": "dor de cabeca",
+  "suggestions": [
+    {
+      "id": "indication-alivio-temporario-de-dores-de-cabeca",
+      "label": "Alívio temporário de dores de cabeça",
+      "kind": "indication",
+      "score": 0.84
+    }
+  ],
+  "meta": {
+    "source": "ANVISA - Consulta de medicamentos",
+    "fetched_at": "2025-05-28T11:42:00Z",
+    "is_estimate": false,
+    "is_stale": false
+  }
+}
+```
 
 #### `GET /api/v1/conditions/categories`
 

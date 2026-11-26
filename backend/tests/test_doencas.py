@@ -71,6 +71,7 @@ def test_descricoes_e_capitulos_da_cid10():
 def test_busca_por_nome_sinonimo_sem_acento_e_codigo():
     nomes = lambda q: [d["popular_name"] for d in doencas.filtrar(q)]  # noqa: E731
     assert nomes("dengue") == ["Dengue"]
+    assert nomes("denguee") == ["Dengue"]
     assert nomes("pressao alta") == ["Hipertensão (pressão alta)"]
     assert nomes("derrame") == ["AVC"]
     assert nomes("a90") == ["Dengue"]

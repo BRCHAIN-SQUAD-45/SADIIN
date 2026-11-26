@@ -6,13 +6,20 @@ from typing import Literal
 from xml.etree import ElementTree
 
 import httpx
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Request
 
 from app.api.responses import api_error, source_unavailable
+from app.api.routers.medications import public_medication
 from app.integrations import doencas
-from app.integrations.anvisa import listar_medicamentos
+from app.integrations.anvisa import (
+    ANVISA_SOURCE,
+    listar_medicamentos,
+    sugerir_indicacoes,
+    sugerir_medicamentos,
+)
 from app.integrations.geocoding import municipio_por_coordenadas
 from app.integrations.noticias import noticias_para_home
+from app.search.fuzzy import normalize_search_text
 from app.integrations.units import (
     CNES_PAGE_LIMIT,
     buscar_todas_unidades_municipais,
@@ -30,15 +37,27 @@ def _normalize(value: str) -> str:
     return " ".join(value.casefold().split())
 
 
+def _is_exact_medication_match(query: str, record: dict) -> bool:
+    needle = normalize_search_text(query)
+    searchable_fields = [
+        str(record.get("name") or ""),
+        str(record.get("subtitle") or ""),
+        str(record.get("synonyms") or ""),
+        *(str(value) for value in record.get("indications", [])),
+    ]
+    for variant in record.get("variants", []):
+        searchable_fields.extend(
+            (str(variant.get("name") or ""), str(variant.get("manufacturer") or ""))
+        )
+    return any(needle in normalize_search_text(value) for value in searchable_fields)
+
+
 MAX_RESULTADOS_POR_TIPO = 5
-MEDICATION_FIELDS = (
-    "id", "name", "subtitle", "tag", "category_id", "requires_prescription", "adult_use", "leaflet_url",
-)
 
 
 async def _buscar_medicamentos(q: str) -> list[dict]:
     registros = await listar_medicamentos(q, None)
-    return [{k: r[k] for k in MEDICATION_FIELDS if k in r} for r in registros[:MAX_RESULTADOS_POR_TIPO]]
+    return registros[:MAX_RESULTADOS_POR_TIPO]
 
 
 def _buscar_doencas(q: str) -> list[dict]:
@@ -84,6 +103,7 @@ def _termo_reconhecido(q: str, medicamentos: list[dict], condicoes: list[dict]) 
 
 @router.get("/search")
 async def global_search(
+    request: Request,
     q: str = Query(..., min_length=2, max_length=100),
     search_type: Literal["all", "medications", "conditions", "units"] = Query("all", alias="type"),
     city_ibge: str = Query(DEFAULT_CITY_IBGE, min_length=7, max_length=7, pattern=r"^\d{7}$"),
@@ -144,6 +164,31 @@ async def global_search(
             "/search",
         )
 
+    medication_suggestions = []
+    indication_suggestions = []
+    suggestions_unavailable = False
+    if search_type in ("all", "medications"):
+        try:
+            medication_suggestions = await sugerir_medicamentos(q)
+        except httpx.HTTPError as exc:
+            logger.warning("Sugestões de medicamentos indisponíveis: %s", exc)
+            suggestions_unavailable = True
+    if search_type in ("all", "conditions"):
+        try:
+            indication_suggestions = await sugerir_indicacoes(q)
+        except httpx.HTTPError as exc:
+            logger.warning("Sugestões de indicações indisponíveis: %s", exc)
+            suggestions_unavailable = True
+
+    suggestions = sorted(
+        medication_suggestions + indication_suggestions,
+        key=lambda item: (-item["score"], item["label"].casefold()),
+    )
+    best_suggestion = suggestions[0] if suggestions else None
+    exact_medication_match = any(
+        _is_exact_medication_match(q, record)
+        for record in resultados["medications"]
+    )
     intent, termo = _termo_reconhecido(q, resultados["medications"], resultados["conditions"])
     if intent == "unknown":
         contagem = {
@@ -154,6 +199,10 @@ async def global_search(
         if any(contagem.values()):
             intent = max(contagem, key=contagem.get)
     total = sum(len(v) for v in resultados.values())
+    resultados["medications"] = [
+        public_medication(record, request)
+        for record in resultados["medications"]
+    ]
 
     resposta = {
         "query": q,
@@ -166,11 +215,22 @@ async def global_search(
             "fetched_at": datetime.now(timezone.utc).isoformat(),
             "is_estimate": False,
             # Alguma fonte falhou e a resposta saiu só com as outras.
-            "is_stale": bool(falhas),
+            "is_stale": bool(falhas) or suggestions_unavailable,
         },
     }
     if termo:
         resposta["matched_term"] = termo
+    elif best_suggestion and not exact_medication_match:
+        resposta["matched_term"] = best_suggestion["label"]
+    if suggestions:
+        resposta["suggestions"] = suggestions
+    if "medications" in falhas or suggestions_unavailable:
+        resposta["warnings"] = [
+            {
+                "source": ANVISA_SOURCE,
+                "message": "Sugestões de medicamentos indisponíveis nesta consulta.",
+            }
+        ]
     return resposta
 
 

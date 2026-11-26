@@ -1,12 +1,16 @@
 import asyncio
 import csv
+import hashlib
 import html
 import io
 import logging
+import re
 import time
 import unicodedata
 
 import httpx
+
+from app.search.fuzzy import normalize_search_text, rank_fuzzy_candidates
 
 ANVISA_MEDICATIONS_URL = (
     "https://dados.anvisa.gov.br/dados/CONSULTAS/PRODUTOS/TA_CONSULTA_MEDICAMENTOS.CSV"
@@ -16,6 +20,36 @@ ANVISA_CACHE_TTL_SECONDS = 6 * 60 * 60
 logger = logging.getLogger(__name__)
 _cache: tuple[float, list[dict]] | None = None
 _cache_lock = asyncio.Lock()
+_STRENGTH_PATTERN = re.compile(
+    r"\b\d+(?:[.,]\d+)?\s*(?:mcg|ug|mg|g|kg|ml|l|ui|%)"
+    r"(?:\s*/\s*\d+(?:[.,]\d+)?\s*(?:mcg|ug|mg|g|kg|ml|l|ui))?\b"
+)
+_FORM_ASSETS = {
+    "comprimidos": (
+        "comprimidos.svg",
+        "Ilustração de comprimidos; não representa embalagem comercial.",
+    ),
+    "capsulas": (
+        "capsulas.svg",
+        "Ilustração de cápsulas; não representa embalagem comercial.",
+    ),
+    "liquidos": (
+        "liquidos.svg",
+        "Ilustração de medicamento líquido; não representa embalagem comercial.",
+    ),
+    "topicos": (
+        "topicos.svg",
+        "Ilustração de medicamento tópico; não representa embalagem comercial.",
+    ),
+    "injetaveis": (
+        "injetaveis.svg",
+        "Ilustração de medicamento injetável; não representa embalagem comercial.",
+    ),
+    "medicamento": (
+        "medicamento.svg",
+        "Ilustração genérica de medicamento; não representa embalagem comercial.",
+    ),
+}
 
 
 def _text(value: object) -> str:
@@ -29,6 +63,158 @@ def _normalize(value: str) -> str:
 
 def _category_id(category: str) -> str:
     return _normalize(category).replace(" ", "-") or "outros"
+
+
+def _display_name(value: str) -> str:
+    words = " ".join(value.split()).split(" ")
+    return " ".join(word[:1].upper() + word[1:].lower() for word in words if word)
+
+
+def _medicine_form(row: dict[str, str]) -> str:
+    text = _normalize(
+        " ".join(
+            _text(row.get(field))
+            for field in ("NO_PRODUTO", "COMPLEMENTO", "DS_REFERENCIA")
+        )
+    )
+    if any(term in text for term in ("capsula", "capsulas")):
+        return "capsulas"
+    if any(
+        term in text for term in ("comprimido", "comprimidos", "dragea", "tablete")
+    ):
+        return "comprimidos"
+    if any(
+        term in text for term in ("solucao", "xarope", "suspensao", "gotas", "elixir")
+    ):
+        return "liquidos"
+    if any(term in text for term in ("pomada", "creme", "gel", "locao")):
+        return "topicos"
+    if any(term in text for term in ("injetavel", "injecao", "ampola", "frasco-ampola")):
+        return "injetaveis"
+    return "medicamento"
+
+
+def _strength(row: dict[str, str]) -> str:
+    text = _normalize(
+        " ".join(_text(row.get(field)) for field in ("NO_PRODUTO", "COMPLEMENTO"))
+    ).replace("μ", "u")
+    values = _STRENGTH_PATTERN.findall(text)
+    return "|".join(
+        re.sub(r"\s+", " ", value).strip().replace(",", ".") for value in values
+    )
+
+
+def _group_key(record: dict) -> tuple[str, str, str, str]:
+    ingredient = _normalize(record["active_ingredient"])
+    strength = record["strength"]
+    form = record["dosage_form"]
+    if not ingredient:
+        ingredient = _normalize(record["name"])
+    if not strength:
+        ingredient = f"{ingredient}|{_normalize(record['name'])}"
+    return ingredient, strength, form, record["dosage_form_code"]
+
+
+def _group_records(records: list[dict]) -> list[dict]:
+    grouped: dict[tuple[str, str, str, str], list[dict]] = {}
+    for record in records:
+        grouped.setdefault(_group_key(record), []).append(record)
+
+    result = []
+    for key, variants in grouped.items():
+        variants.sort(
+            key=lambda item: (
+                _normalize(item["name"]),
+                _normalize(item["manufacturer"]),
+                item["id"],
+            )
+        )
+        representative = variants[0]
+        group_id = (
+            "med-"
+            + hashlib.sha256("|".join(key).encode("utf-8")).hexdigest()[:16]
+        )
+        manufacturers = {item["manufacturer"] for item in variants if item["manufacturer"]}
+        active_ingredient = representative["active_ingredient"] or representative["name"]
+        form_label = {
+            "comprimidos": "Comprimidos",
+            "capsulas": "Cápsulas",
+            "liquidos": "Líquido",
+            "topicos": "Uso tópico",
+            "injetaveis": "Injetável",
+            "medicamento": "Forma não identificada",
+        }[representative["dosage_form"]]
+        presentation = " · ".join(
+            part
+            for part in (
+                representative["strength"].replace("|", " / "),
+                form_label,
+            )
+            if part
+        )
+        presentation_count = len(variants)
+        manufacturer_count = len(manufacturers)
+        count_label = (
+            f"{presentation_count} registro{'s' if presentation_count != 1 else ''}"
+            f" · {manufacturer_count} fabricante{'s' if manufacturer_count != 1 else ''}"
+        )
+        subtitle = f"{presentation} · {count_label}" if presentation else count_label
+        indications = sorted(
+            {
+                indication
+                for item in variants
+                for indication in item["indications"]
+                if indication
+            }
+        )
+        result.append(
+            {
+                **{
+                    field: value
+                    for field, value in representative.items()
+                    if field not in {"manufacturer", "active_ingredient", "strength", "dosage_form"}
+                },
+                "id": group_id,
+                "name": _display_name(active_ingredient),
+                "subtitle": subtitle,
+                "active_ingredient": _display_name(active_ingredient),
+                "strength": representative["strength"],
+                "dosage_form": representative["dosage_form"],
+                "dosage_form_code": representative["dosage_form_code"],
+                "image_asset": _FORM_ASSETS[representative["dosage_form"]][0],
+                "image_alt": _FORM_ASSETS[representative["dosage_form"]][1],
+                "variant_count": len(variants),
+                "manufacturer_count": len(manufacturers),
+                "synonyms": " ".join(
+                    sorted(
+                        {
+                            item["synonyms"]
+                            for item in variants
+                            if item["synonyms"]
+                        }
+                    )
+                ),
+                "requires_prescription": any(
+                    item["requires_prescription"] for item in variants
+                ),
+                "indications": indications,
+                "variants": [
+                    {
+                        "id": item["id"],
+                        "name": _display_name(item["name"]),
+                        "manufacturer": item["manufacturer"],
+                        "registration_number": item["registration_number"],
+                        "presentation": " · ".join(
+                            part for part in (item["strength"], form_label) if part
+                        ),
+                        "leaflet_url": item["leaflet_url"],
+                        "requires_prescription": item["requires_prescription"],
+                    }
+                    for item in variants
+                ],
+            }
+        )
+    return sorted(result, key=lambda item: _normalize(item["name"]))
 
 
 def _is_active(row: dict[str, str]) -> bool:
@@ -65,6 +251,9 @@ def _to_record(row: dict[str, str]) -> dict | None:
     substances = _text(row.get("SUBSTANCIAS_MEDICAMENTOS"))
     indications = _text(row.get("INDICACOES"))
     process_number = _text(row.get("NU_PROCESSO"))
+    dosage_form = _medicine_form(row)
+    strength = _strength(row)
+    dosage_form_code = _text(row.get("CO_FORMA_FISICA"))
     leaflet_url = (
         f"https://consultas.anvisa.gov.br/#/medicamentos/{process_number}/"
         if process_number
@@ -72,13 +261,20 @@ def _to_record(row: dict[str, str]) -> dict | None:
     )
     return {
         "id": product_id,
-        "name": name,
+        "name": _display_name(name),
         "subtitle": substances or category,
         "tag": category,
         "category_id": _category_id(category),
         "requires_prescription": bool(_text(row.get("CO_RESTRICAO"))),
         "adult_use": True,
         "leaflet_url": leaflet_url,
+        "image_asset": _FORM_ASSETS[dosage_form][0],
+        "image_alt": _FORM_ASSETS[dosage_form][1],
+        "active_ingredient": substances,
+        "strength": strength,
+        "dosage_form": dosage_form,
+        "dosage_form_code": dosage_form_code,
+        "manufacturer": _text(row.get("NO_RAZAO_SOCIAL_EMPRESA")),
         "indications": [
             indications
             if indications
@@ -124,30 +320,110 @@ async def _load_records() -> list[dict]:
             if record is not None:
                 records_by_id[record["id"]] = record
 
-        records = sorted(records_by_id.values(), key=lambda item: _normalize(item["name"]))
+        records = _group_records(list(records_by_id.values()))
         _cache = (time.monotonic() + ANVISA_CACHE_TTL_SECONDS, records)
-        logger.info("Catálogo ANVISA carregado: %s medicamentos ativos", len(records))
+        logger.info("Catálogo ANVISA carregado: %s grupos de medicamentos ativos", len(records))
         return records
 
 
 async def listar_medicamentos(query: str | None, category: str | None) -> list[dict]:
     records = await _load_records()
-    normalized_query = _normalize(query or "").strip()
+    normalized_query = normalize_search_text(query or "")
     normalized_category = _normalize(category or "").strip()
-    return [
+    eligible = [
         record
         for record in records
         if (
-            not normalized_query
-            or normalized_query in _normalize(record["name"])
-            or normalized_query in _normalize(record["subtitle"])
-            or normalized_query in _normalize(record["synonyms"])
-        )
-        and (
             not normalized_category
             or normalized_category == "todos"
             or record["category_id"] == normalized_category
         )
+    ]
+    if not normalized_query:
+        return eligible
+
+    matches = [
+        record
+        for record in eligible
+        if (
+            normalized_query in normalize_search_text(record["name"])
+            or normalized_query in normalize_search_text(record["subtitle"])
+            or normalized_query in normalize_search_text(record["synonyms"])
+            or any(
+                normalized_query in normalize_search_text(indication)
+                for indication in record["indications"]
+            )
+            or any(
+                normalized_query in normalize_search_text(
+                    " ".join((variant["name"], variant["manufacturer"]))
+                )
+                for variant in record["variants"]
+            )
+        )
+    ]
+    if matches:
+        return matches
+
+    ranked = rank_fuzzy_candidates(
+        normalized_query,
+        (
+            (
+                record["id"],
+                record["name"],
+                _record_search_aliases(record),
+            )
+            for record in eligible
+        ),
+        limit=len(eligible),
+    )
+    records_by_id = {record["id"]: record for record in eligible}
+    return [records_by_id[item["id"]] for item in ranked]
+
+
+def _record_search_aliases(record: dict) -> list[str]:
+    aliases = [
+        record["active_ingredient"],
+        record["subtitle"],
+        record["synonyms"],
+        *record["indications"],
+    ]
+    for variant in record["variants"]:
+        aliases.extend((variant["name"], variant["manufacturer"]))
+    return [alias for alias in aliases if alias]
+
+
+async def sugerir_medicamentos(query: str, limit: int = 5) -> list[dict]:
+    records = await _load_records()
+    ranked = rank_fuzzy_candidates(
+        query,
+        (
+            (record["id"], record["name"], _record_search_aliases(record))
+            for record in records
+        ),
+        limit=limit,
+    )
+    return [{**item, "kind": "medication"} for item in ranked]
+
+
+async def sugerir_indicacoes(query: str, limit: int = 5) -> list[dict]:
+    records = await _load_records()
+    labels = {
+        normalize_search_text(indication): indication
+        for record in records
+        for indication in record["indications"]
+        if indication
+    }
+    ranked = rank_fuzzy_candidates(
+        query,
+        (
+            (label_key, label, ())
+            for label_key, label in labels.items()
+        ),
+        limit=limit,
+    )
+    return [
+        {**item, "id": f"indication-{item['id']}", "kind": "indication"}
+        for item in ranked
     ]
 
 
@@ -165,4 +441,12 @@ async def listar_categorias() -> list[dict]:
 
 async def buscar_medicamento(medication_id: str) -> dict | None:
     records = await _load_records()
-    return next((record for record in records if record["id"] == medication_id), None)
+    return next(
+        (
+            record
+            for record in records
+            if record["id"] == medication_id
+            or any(variant["id"] == medication_id for variant in record["variants"])
+        ),
+        None,
+    )

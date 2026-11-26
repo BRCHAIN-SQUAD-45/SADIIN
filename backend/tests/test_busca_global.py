@@ -31,7 +31,12 @@ def _fontes(monkeypatch, medicamentos=MEDICAMENTOS, unidades=(UNIDADE,), falha_a
             raise httpx.ConnectError("CNES fora do ar")
         return [u for u in unidades if q.casefold() in u["name"].casefold()]
 
+    async def sugestoes(q):
+        return []
+
     monkeypatch.setattr(dashboard, "listar_medicamentos", meds)
+    monkeypatch.setattr(dashboard, "sugerir_medicamentos", sugestoes)
+    monkeypatch.setattr(dashboard, "sugerir_indicacoes", sugestoes)
     monkeypatch.setattr(dashboard, "_buscar_unidades", ubs)
 
 
