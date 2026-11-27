@@ -156,7 +156,10 @@ function UnitDetailContent({
   const historyQuery = useUnitAttendanceHistory(cnes, 7);
   const servicesQuery = useUnitServices(cnes);
   const [structureOpen, setStructureOpen] = useState(false);
-  useEffect(() => { setStructureOpen(false); onSelectServiceCategory('Todos'); }, [cnes, onSelectServiceCategory]);
+  useEffect(() => {
+    setStructureOpen(false);
+    onSelectServiceCategory('Todos');
+  }, [cnes, onSelectServiceCategory]);
   const staffQuery = useUnitStaff(cnes);
   const [selectorOpen, setSelectorOpen] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(0);
@@ -169,7 +172,10 @@ function UnitDetailContent({
   const metrics = metricsQuery.data;
   const history = historyQuery.data;
   const allServices = servicesQuery.data ?? [];
-  const services = selectedServiceCategory === 'Todos' ? allServices : allServices.filter(s => s.category === selectedServiceCategory);
+  const services =
+    selectedServiceCategory === 'Todos'
+      ? allServices
+      : allServices.filter((s) => s.category === selectedServiceCategory);
   const staff = staffQuery.data;
 
   // A unidade aberta sempre aparece no seletor (ela pode não estar na 1ª página da lista).
@@ -372,7 +378,19 @@ function UnitDetailContent({
               <a href={buildTelHref(unit.phone)}>
                 <Icon name="phone" size={17} /> Ligar
               </a>
-              {Number.isFinite(unit.lat) && Number.isFinite(unit.lng) && <UnitRoutes unit={unit} origin={(location.label === 'Localização atual' || location.label === 'Localização confirmada') && location.lat !== null && location.lng !== null ? { lat: location.lat, lng: location.lng } : undefined} />}
+              {Number.isFinite(unit.lat) && Number.isFinite(unit.lng) && (
+                <UnitRoutes
+                  unit={unit}
+                  origin={
+                    (location.label === 'Localização atual' ||
+                      location.label === 'Localização confirmada') &&
+                    location.lat !== null &&
+                    location.lng !== null
+                      ? { lat: location.lat, lng: location.lng }
+                      : undefined
+                  }
+                />
+              )}
             </div>
           </section>
         )}
@@ -531,7 +549,10 @@ function UnitDetailContent({
             <div>
               <span>SERVIÇOS DA UNIDADE</span>
               <h2>O que esta UBS oferece</h2>
-              <p>Serviços especializados registrados no CNES. A lista pode não incluir todos os atendimentos da unidade.</p>
+              <p>
+                Serviços especializados registrados no CNES. A lista pode não incluir todos os
+                atendimentos da unidade.
+              </p>
             </div>
             <button
               type="button"
@@ -562,7 +583,11 @@ function UnitDetailContent({
                   className={isActive ? 'active' : ''}
                   onClick={() => onSelectServiceCategory(cat)}
                 >
-                  {cat} ({cat === 'Todos' ? allServices.length : allServices.filter(s => s.category === cat).length})
+                  {cat} (
+                  {cat === 'Todos'
+                    ? allServices.length
+                    : allServices.filter((s) => s.category === cat).length}
+                  )
                 </button>
               );
             })}
@@ -582,7 +607,11 @@ function UnitDetailContent({
             />
           ) : services.length === 0 ? (
             <EmptyState
-              title={selectedServiceCategory === 'Todos' ? 'Nenhum serviço especializado retornado pelo CNES' : 'Nenhum serviço registrado nesta categoria'}
+              title={
+                selectedServiceCategory === 'Todos'
+                  ? 'Nenhum serviço especializado retornado pelo CNES'
+                  : 'Nenhum serviço registrado nesta categoria'
+              }
               description="Isso não significa que a UBS não ofereça atendimento. Confirme diretamente com a unidade."
               actionLabel="Ver todos os serviços"
               onAction={() => onSelectServiceCategory('Todos')}
@@ -596,11 +625,22 @@ function UnitDetailContent({
                   </span>
                   <div>
                     <small>{service.category}</small>
-                    <h3>{service.detail.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().includes('ELETROCARDIOGRAFICO') ? 'Eletrocardiograma (ECG)' : formatDisplayName(service.name)}</h3>
+                    <h3>
+                      {service.detail
+                        .normalize('NFD')
+                        .replace(/[\u0300-\u036f]/g, '')
+                        .toUpperCase()
+                        .includes('ELETROCARDIOGRAFICO')
+                        ? 'Eletrocardiograma (ECG)'
+                        : formatDisplayName(service.name)}
+                    </h3>
                     <p>{service.detail}</p>
-                    {service.detail.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().includes('ELETROCARDIOGRAFICO') && <p>{formatDisplayName(service.name)}</p>}
+                    {service.detail
+                      .normalize('NFD')
+                      .replace(/[\u0300-\u036f]/g, '')
+                      .toUpperCase()
+                      .includes('ELETROCARDIOGRAFICO') && <p>{formatDisplayName(service.name)}</p>}
                   </div>
-
                 </article>
               ))}
             </div>
@@ -648,16 +688,33 @@ function UnitDetailContent({
                     <small>equipes identificadas (INE)</small>
                   </span>
                 </div>
-                <button type="button" aria-expanded={structureOpen} onClick={() => setStructureOpen(v => !v)}>
-                  {structureOpen ? 'Ocultar estrutura' : 'Ver estrutura completa'} <Icon name="arrow" size={16} />
+                <button
+                  type="button"
+                  aria-expanded={structureOpen}
+                  onClick={() => setStructureOpen((v) => !v)}
+                >
+                  {structureOpen ? 'Ocultar estrutura' : 'Ver estrutura completa'}{' '}
+                  <Icon name="arrow" size={16} />
                 </button>
-                {structureOpen && <div style={{ padding: 17 }}>
-                  <p>Registros profissionais com atendimento SUS: {formatInt(staff.professionals)}</p>
-                  <p>Consultórios: {staff.rooms == null ? 'Não informado pelo CNES' : formatInt(staff.rooms)}</p>
-                  <p>Equipes identificadas pelo INE: {formatInt(staff.esf_teams)}</p>
-                  <p>Os registros podem incluir mais de um vínculo por profissional. A ausência de INE não comprova ausência de equipes ESF.</p>
-                  <a href="https://cnes.datasus.gov.br/" target="_blank" rel="noreferrer">Consultar ficha oficial no CNES (código {cnes})</a>
-                </div>}
+                {structureOpen && (
+                  <div style={{ padding: 17 }}>
+                    <p>
+                      Registros profissionais com atendimento SUS: {formatInt(staff.professionals)}
+                    </p>
+                    <p>
+                      Consultórios:{' '}
+                      {staff.rooms == null ? 'Não informado pelo CNES' : formatInt(staff.rooms)}
+                    </p>
+                    <p>Equipes identificadas pelo INE: {formatInt(staff.esf_teams)}</p>
+                    <p>
+                      Os registros podem incluir mais de um vínculo por profissional. A ausência de
+                      INE não comprova ausência de equipes ESF.
+                    </p>
+                    <a href="https://cnes.datasus.gov.br/" target="_blank" rel="noreferrer">
+                      Consultar ficha oficial no CNES (código {cnes})
+                    </a>
+                  </div>
+                )}
               </>
             )}
           </article>
@@ -673,7 +730,11 @@ function UnitDetailContent({
               <Icon name="phone" size={16} />
               <span>
                 <small>TELEFONE</small>
-                {buildTelHref(unit?.phone) !== '#' ? <a href={buildTelHref(unit?.phone)}>{formatUnitPhone(unit?.phone)}</a> : 'Telefone não informado ou inválido'}
+                {buildTelHref(unit?.phone) !== '#' ? (
+                  <a href={buildTelHref(unit?.phone)}>{formatUnitPhone(unit?.phone)}</a>
+                ) : (
+                  'Telefone não informado ou inválido'
+                )}
               </span>
             </p>
             <p>

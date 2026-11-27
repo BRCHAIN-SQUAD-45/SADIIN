@@ -26,7 +26,11 @@ export function useGeolocation() {
     setStatus('loading');
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        const next = { lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy };
+        const next = {
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+          accuracy: pos.coords.accuracy,
+        };
         setCoords(next);
         setStatus('granted');
         onSuccess?.(next);

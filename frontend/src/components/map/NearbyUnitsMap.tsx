@@ -58,7 +58,19 @@ export function NearbyUnitsMap({
   const env = getEnv();
 
   // Sem UBS retornadas, o mapa fica sem pinos: nunca exibimos unidades fictícias.
-  const effectiveUnits = useMemo(() => units.filter((u) => Number.isFinite(u.lat) && Number.isFinite(u.lng) && u.lat >= -34 && u.lat <= 6 && u.lng >= -74 && u.lng <= -28), [units]);
+  const effectiveUnits = useMemo(
+    () =>
+      units.filter(
+        (u) =>
+          Number.isFinite(u.lat) &&
+          Number.isFinite(u.lng) &&
+          u.lat >= -34 &&
+          u.lat <= 6 &&
+          u.lng >= -74 &&
+          u.lng <= -28,
+      ),
+    [units],
+  );
   const nearest = nearestBasicUnit(effectiveUnits);
   const pinViews = useMemo(
     () => effectiveUnits.map((u) => mapUnitSummaryToPinView(u)),
@@ -80,8 +92,30 @@ export function NearbyUnitsMap({
 
           {showUserMarker && (
             <>
-              {accuracy !== undefined && Number.isFinite(accuracy) && accuracy > 0 && <Circle center={[centerLat, centerLng]} radius={accuracy} pathOptions={{ color: "#1677e8", fillOpacity: 0.12, weight: 1 }} />}
-              <Marker position={[centerLat, centerLng]} icon={userLocationDivIcon} zIndexOffset={2000} draggable={editing && Boolean(onPositionChange)} eventHandlers={{dragend: (event) => { const point = (event.target as L.Marker).getLatLng(); onPositionChange?.(point.lat, point.lng); }}}><Popup>{editing ? "Arraste e confirme sua posição" : "Sua posição"}{accuracy !== undefined ? ` (precisão: ${Math.round(accuracy)} m)` : ""}</Popup></Marker>
+              {accuracy !== undefined && Number.isFinite(accuracy) && accuracy > 0 && (
+                <Circle
+                  center={[centerLat, centerLng]}
+                  radius={accuracy}
+                  pathOptions={{ color: '#1677e8', fillOpacity: 0.12, weight: 1 }}
+                />
+              )}
+              <Marker
+                position={[centerLat, centerLng]}
+                icon={userLocationDivIcon}
+                zIndexOffset={2000}
+                draggable={editing && Boolean(onPositionChange)}
+                eventHandlers={{
+                  dragend: (event) => {
+                    const point = (event.target as L.Marker).getLatLng();
+                    onPositionChange?.(point.lat, point.lng);
+                  },
+                }}
+              >
+                <Popup>
+                  {editing ? 'Arraste e confirme sua posição' : 'Sua posição'}
+                  {accuracy !== undefined ? ` (precisão: ${Math.round(accuracy)} m)` : ''}
+                </Popup>
+              </Marker>
             </>
           )}
 
@@ -89,34 +123,41 @@ export function NearbyUnitsMap({
             const unit = effectiveUnits[idx];
             if (!unit) return null;
             return (
-            <Marker
-              key={pin.cnes}
-              title={pin.name}
-              alt={pin.name}
-              position={[pin.lat, pin.lng]}
-              icon={buildUnitDivIcon(pin.kind, showUserMarker && pin.cnes === nearest?.cnes_code)}
-            >
-              <Popup>
-                <div className="map-popup-card">
-                  <strong>{pin.name}</strong>
-                  {showUserMarker && pin.cnes === nearest?.cnes_code && <p>UBS mais próxima</p>}
-                  <p>{pin.address}</p>
-                  <small>
-                    {pin.statusLabel}
-                    {pin.distanceLabel ? ` • ${pin.distanceLabel}` : ''}
-                  </small>
-                  <UnitRoutes unit={unit} origin={showUserMarker ? { lat: centerLat, lng: centerLng } : undefined} />
-                  <Link to={pin.detailHref}>Ver detalhes da unidade →</Link>
-                </div>
-              </Popup>
-            </Marker>
+              <Marker
+                key={pin.cnes}
+                title={pin.name}
+                alt={pin.name}
+                position={[pin.lat, pin.lng]}
+                icon={buildUnitDivIcon(pin.kind, showUserMarker && pin.cnes === nearest?.cnes_code)}
+              >
+                <Popup>
+                  <div className="map-popup-card">
+                    <strong>{pin.name}</strong>
+                    {showUserMarker && pin.cnes === nearest?.cnes_code && <p>UBS mais próxima</p>}
+                    <p>{pin.address}</p>
+                    <small>
+                      {pin.statusLabel}
+                      {pin.distanceLabel ? ` • ${pin.distanceLabel}` : ''}
+                    </small>
+                    <UnitRoutes
+                      unit={unit}
+                      origin={showUserMarker ? { lat: centerLat, lng: centerLng } : undefined}
+                    />
+                    <Link to={pin.detailHref}>Ver detalhes da unidade →</Link>
+                  </div>
+                </Popup>
+              </Marker>
             );
           })}
         </MapContainer>
       </div>
 
       <div className="map-legend">
-        {showUserMarker && <span><i style={{ background: "#1677e8" }} /> Sua posição estimada</span>}
+        {showUserMarker && (
+          <span>
+            <i style={{ background: '#1677e8' }} /> Sua posição estimada
+          </span>
+        )}
         <span>
           <i /> UBS
         </span>

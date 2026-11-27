@@ -56,18 +56,40 @@ export function HomePage() {
   const { location, selectLocation } = useLocationSelection();
 
   const geo = useGeolocation();
-  const [draft, setDraft] = useState<{lat: number; lng: number; accuracy?: number; label: string} | null>(null);
+  const [draft, setDraft] = useState<{
+    lat: number;
+    lng: number;
+    accuracy?: number;
+    label: string;
+  } | null>(null);
   const [busy, setBusy] = useState(false);
   const [positionError, setPositionError] = useState('');
   const confirmPosition = async () => {
     if (!draft) return;
-    setBusy(true); setPositionError('');
+    setBusy(true);
+    setPositionError('');
     try {
-      const city = await apiGet('GET /locations/resolve', '/locations/resolve', z.object({uf:z.string(),name:z.string(),ibge_code:z.string()}), {params:{lat:draft.lat,lng:draft.lng}, retries:0});
-      selectLocation({uf:city.uf,cityName:city.name,ibgeCode:city.ibge_code,lat:draft.lat,lng:draft.lng,label:'Localização confirmada',accuracy:draft.accuracy});
+      const city = await apiGet(
+        'GET /locations/resolve',
+        '/locations/resolve',
+        z.object({ uf: z.string(), name: z.string(), ibge_code: z.string() }),
+        { params: { lat: draft.lat, lng: draft.lng }, retries: 0 },
+      );
+      selectLocation({
+        uf: city.uf,
+        cityName: city.name,
+        ibgeCode: city.ibge_code,
+        lat: draft.lat,
+        lng: draft.lng,
+        label: 'Localização confirmada',
+        accuracy: draft.accuracy,
+      });
       setDraft(null);
-    } catch { setPositionError('Não foi possível identificar o município. Tente novamente.'); }
-    finally { setBusy(false); }
+    } catch {
+      setPositionError('Não foi possível identificar o município. Tente novamente.');
+    } finally {
+      setBusy(false);
+    }
   };
 
   const debouncedText = useDebounce(queryText, 300);
@@ -81,7 +103,16 @@ export function HomePage() {
     cityIbge: location.ibgeCode,
     enabled: effectiveSearchTerm.trim().length >= 2,
   });
-  const nearbyQuery = useNearbyUnits((location.label === 'Localização atual' || location.label === 'Localização confirmada') ? location.lat : null, (location.label === 'Localização atual' || location.label === 'Localização confirmada') ? location.lng : null, 10, location.ibgeCode);
+  const nearbyQuery = useNearbyUnits(
+    location.label === 'Localização atual' || location.label === 'Localização confirmada'
+      ? location.lat
+      : null,
+    location.label === 'Localização atual' || location.label === 'Localização confirmada'
+      ? location.lng
+      : null,
+    10,
+    location.ibgeCode,
+  );
   const newsQuery = useNews(location.uf, location.ibgeCode);
 
   // Carrossel: o card grande percorre destaque + demais notícias; a lista ao lado mostra as outras.
@@ -116,7 +147,7 @@ export function HomePage() {
     geo.request(
       (coords) => {
         setPositionError('');
-        setDraft({...coords, label: 'Posição estimada pelo dispositivo'});
+        setDraft({ ...coords, label: 'Posição estimada pelo dispositivo' });
       },
       () => {
         // Permissão recusada: não quebra o mapa nem os painéis (caso de borda 1.1).
@@ -139,7 +170,8 @@ export function HomePage() {
           lat: location.lat,
           lng: location.lng,
           // Coordenadas padrão/da cidade não são a posição GPS do usuário.
-          isUser: (location.label === 'Localização atual' || location.label === 'Localização confirmada'),
+          isUser:
+            location.label === 'Localização atual' || location.label === 'Localização confirmada',
         }
       : nearestUnit
         ? { lat: nearestUnit.lat, lng: nearestUnit.lng, isUser: false }
@@ -422,11 +454,19 @@ export function HomePage() {
             <div className="place-field">
               <Icon name="pin" size={19} />
               <input
-                value={location.label === "Localização confirmada" ? `${location.cityName}, ${location.uf} — posição confirmada` : location.label}
+                value={
+                  location.label === 'Localização confirmada'
+                    ? `${location.cityName}, ${location.uf} — posição confirmada`
+                    : location.label
+                }
                 readOnly
                 aria-label="Sua localização"
               />
-              <button type="button" onClick={handleUseMyLocation} disabled={busy || geo.status === "loading"}>
+              <button
+                type="button"
+                onClick={handleUseMyLocation}
+                disabled={busy || geo.status === 'loading'}
+              >
                 Usar minha localização
               </button>
             </div>
@@ -439,14 +479,60 @@ export function HomePage() {
             )}
 
             <div className="ubs-routes location-adjustment">
-              {!draft && <button disabled={busy} onClick={()=>{setPositionError('');setDraft({lat:mapCenter.lat,lng:mapCenter.lng,label:'Ponto escolhido no mapa'});}}>Ajustar posição no mapa</button>}
-              {draft && <><p>{draft.label}. Use a rodinha do mouse para aproximar ou afastar o mapa. Arraste o ponto azul até sua posição e confirme. {draft.accuracy !== undefined && `Precisão estimada: ${Math.round(draft.accuracy)} m.`}</p><button disabled={busy} onClick={()=>void confirmPosition()}>Confirmar localização</button> <button disabled={busy} onClick={()=>{setDraft(null);setPositionError('');}}>Cancelar</button></>}
+              {!draft && (
+                <button
+                  disabled={busy}
+                  onClick={() => {
+                    setPositionError('');
+                    setDraft({
+                      lat: mapCenter.lat,
+                      lng: mapCenter.lng,
+                      label: 'Ponto escolhido no mapa',
+                    });
+                  }}
+                >
+                  Ajustar posição no mapa
+                </button>
+              )}
+              {draft && (
+                <>
+                  <p>
+                    {draft.label}. Use a rodinha do mouse para aproximar ou afastar o mapa. Arraste
+                    o ponto azul até sua posição e confirme.{' '}
+                    {draft.accuracy !== undefined &&
+                      `Precisão estimada: ${Math.round(draft.accuracy)} m.`}
+                  </p>
+                  <button disabled={busy} onClick={() => void confirmPosition()}>
+                    Confirmar localização
+                  </button>{' '}
+                  <button
+                    disabled={busy}
+                    onClick={() => {
+                      setDraft(null);
+                      setPositionError('');
+                    }}
+                  >
+                    Cancelar
+                  </button>
+                </>
+              )}
               {positionError && <p role="alert">{positionError}</p>}
             </div>
-            {geo.status === 'loading'  && <p role="status">Obtendo sua localização…</p>}
-            {mapCenter.isUser && location.accuracy !== undefined && <p role="status">Precisão estimada: {Math.round(location.accuracy)} m. {location.accuracy > 100 ? "A localização é aproximada; confira o ponto azul antes de iniciar a rota." : "Confira o ponto azul no mapa."}</p>}
-            {!mapCenter.isUser && <p>Use sua localização para identificar a UBS mais próxima de você.</p>}
-            {nearbyQuery.data?.length && !nearestUnit ? <p>Nenhuma UBS encontrada no raio consultado.</p> : null}
+            {geo.status === 'loading' && <p role="status">Obtendo sua localização…</p>}
+            {mapCenter.isUser && location.accuracy !== undefined && (
+              <p role="status">
+                Precisão estimada: {Math.round(location.accuracy)} m.{' '}
+                {location.accuracy > 100
+                  ? 'A localização é aproximada; confira o ponto azul antes de iniciar a rota.'
+                  : 'Confira o ponto azul no mapa.'}
+              </p>
+            )}
+            {!mapCenter.isUser && (
+              <p>Use sua localização para identificar a UBS mais próxima de você.</p>
+            )}
+            {nearbyQuery.data?.length && !nearestUnit ? (
+              <p>Nenhuma UBS encontrada no raio consultado.</p>
+            ) : null}
             {nearbyQuery.isPending && <Skeleton style={{ height: 92, marginTop: 13 }} />}
 
             {nearbyQuery.isError && (
@@ -496,7 +582,6 @@ export function HomePage() {
                       <Icon name="phone" size={16} /> {nearestUnit.phone}
                     </span>
                   )}
-
                 </div>
                 <UnitRoutes unit={nearestUnit} origin={mapCenter.isUser ? mapCenter : undefined} />
               </div>
@@ -516,7 +601,11 @@ export function HomePage() {
             centerLng={draft?.lng ?? mapCenter.lng}
             showUserMarker={Boolean(draft) || mapCenter.isUser}
             editing={Boolean(draft)}
-            onPositionChange={busy ? undefined : (lat,lng)=>setDraft({lat,lng,label:"Ponto escolhido no mapa"})}
+            onPositionChange={
+              busy
+                ? undefined
+                : (lat, lng) => setDraft({ lat, lng, label: 'Ponto escolhido no mapa' })
+            }
             accuracy={draft ? draft.accuracy : location.accuracy}
           />
         </div>
