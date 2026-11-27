@@ -880,3 +880,12 @@
 .directory-did-you-mean {
   margin-top: 0;
 }
+
+.ubs-routes { margin-top: 12px; display: grid; gap: 8px; }
+.ubs-route-options { display: flex; flex-wrap: wrap; gap: 6px; }
+.ubs-route-options a { display: inline-flex; align-items: center; padding: 8px 10px; border: 1px solid #087f70; border-radius: 8px; color: #087f70; background: white; font-weight: 600; text-decoration: none; }
+.ubs-route-options a:hover, .ubs-route-options a:focus-visible { background: #e4f5f1; }
+.ubs-routes small { line-height: 1.4; }
+.location-adjustment button { border: 1px solid #087f70; border-radius: 8px; padding: 9px 12px; color: #087f70; background: transparent; cursor: pointer; font: inherit; }
+.location-adjustment button:disabled { opacity: .55; cursor: not-allowed; }
+.location-adjustment button:hover:not(:disabled) { background: #e7f5f2; }

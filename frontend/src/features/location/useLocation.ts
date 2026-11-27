@@ -17,9 +17,10 @@ export interface SelectedLocation {
   lng: number | null;
   /** Ex.: `"São Paulo, SP"` ou `"Localização atual"`. */
   label: string;
+  accuracy?: number;
 }
 
-export const LOCATION_STORAGE_KEY = 'brchain.location';
+export const LOCATION_STORAGE_KEY = 'brchain.location.v5';
 
 export const DEFAULT_LOCATION: SelectedLocation = {
   uf: 'SP',

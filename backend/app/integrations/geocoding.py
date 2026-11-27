@@ -65,14 +65,16 @@ async def municipio_por_coordenadas(lat: float, lng: float) -> dict[str, str]:
         return cached[1]
 
     address = await _reverse_lookup(lat, lng)
-    state_name = address.get("state")
+    state_name = address.get("state") or address.get("ISO3166-2-lvl4")
+    if address.get("country_code") not in (None, "br"):
+        raise ValueError("Localização fora do Brasil.")
     if not state_name:
         raise ValueError("A geocodificação não identificou o estado.")
 
     async with IbgeConector() as ibge:
         states = await ibge.listar_estados()
         state = next(
-            (item for item in states if _normalize(item["name"]) == _normalize(state_name)),
+            (item for item in states if _normalize(item["name"]) == _normalize(state_name) or address.get("ISO3166-2-lvl4") == f'BR-{item["uf"]}'),
             None,
         )
         if state is None:

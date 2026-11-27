@@ -143,7 +143,7 @@ describe('Fase 3 — Medicamentos, Doenças e Sintomas e Detalhes da UBS', () =>
       'href',
       'tel:+551133330180',
     );
-    expect(screen.getByRole('link', { name: /Como chegar/i })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: /A pé/i })).toHaveAttribute(
       'href',
       expect.stringContaining('google.com/maps/dir/'),
     );
@@ -164,7 +164,7 @@ describe('Fase 3 — Medicamentos, Doenças e Sintomas e Detalhes da UBS', () =>
     // Serviços e filtro por categoria (US-04.5)
     expect(screen.getByRole('heading', { level: 3, name: 'Clínica geral' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 3, name: 'Vacinação' })).toBeInTheDocument();
-    await user.click(screen.getByRole('tab', { name: 'Prevenção' }));
+    await user.click(screen.getByRole('tab', { name: /^Prevenção/i }));
     await waitFor(() => {
       expect(
         screen.queryByRole('heading', { level: 3, name: 'Clínica geral' }),
@@ -175,7 +175,7 @@ describe('Fase 3 — Medicamentos, Doenças e Sintomas e Detalhes da UBS', () =>
     // Equipe e estrutura CNES com data oficial (US-04.6)
     expect(screen.getByText(/Dados oficiais do CNES • Competência 2025-05/i)).toBeInTheDocument();
     expect(screen.getByText('32')).toBeInTheDocument();
-    expect(screen.getByText('profissionais')).toBeInTheDocument();
+    expect(screen.getByText('registros profissionais SUS')).toBeInTheDocument();
 
     // Seletor de unidade alterna para UBS Sé (9990002)
     const unitSelectorBtn = screen.getByRole('button', { name: 'Selecionar unidade' });

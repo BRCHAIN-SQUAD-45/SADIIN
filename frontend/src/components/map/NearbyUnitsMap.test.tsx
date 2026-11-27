@@ -6,7 +6,7 @@ import { toUnitSummary, unitsFixture } from '../../mocks/fixtures/meta';
 import { NearbyUnitsMap } from './NearbyUnitsMap';
 
 describe('Fase 5 — Mapa interativo Leaflet (US-04.1)', () => {
-  it('renderiza container Leaflet, pinos das UBS, indicador "Você está aqui" e legenda UBS/Hospital', async () => {
+  it('renderiza container Leaflet, pinos das UBS, indicador "Sua posição estimada" e legenda UBS/Hospital', async () => {
     const user = userEvent.setup();
     const summaries = unitsFixture.map(toUnitSummary);
 
@@ -17,7 +17,7 @@ describe('Fase 5 — Mapa interativo Leaflet (US-04.1)', () => {
     );
 
     expect(screen.getByLabelText('Mapa interativo com unidades próximas')).toBeInTheDocument();
-    expect(screen.getAllByText('Você está aqui').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Sua posição estimada').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('UBS')).toBeInTheDocument();
     expect(screen.getByText('Hospital')).toBeInTheDocument();
 

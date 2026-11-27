@@ -334,10 +334,7 @@ async def get_unit_attendance_history(cnes: str, days: int = Query(7, ge=1, le=9
         {
             "date": f"{competence // 100:04d}-{competence % 100:02d}-01",
             "weekday_label": (
-                f"{(
-                    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-                    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
-                )[competence % 100 - 1]}/{competence // 100}"
+                f"{( 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro' )[competence % 100 - 1]}/{competence // 100}"
             ),
             "attendances": total,
         }

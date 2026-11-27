@@ -82,8 +82,8 @@ export function formatClosesAt(hhmm?: string): string {
 }
 
 /** Deep link de rota para Google Maps. */
-export function buildRouteUrl(lat: number, lng: number, label?: string): string {
-  const dest = label ? `${encodeURIComponent(label)}@${lat},${lng}` : `${lat},${lng}`;
+export function buildRouteUrl(lat: number, lng: number, _label?: string): string {
+  const dest = encodeURIComponent(`${lat},${lng}`);
   return `https://www.google.com/maps/dir/?api=1&destination=${dest}`;
 }
 
@@ -91,7 +91,8 @@ export function buildRouteUrl(lat: number, lng: number, label?: string): string 
 export function buildTelHref(phone?: string): string {
   if (!phone) return '#';
   const digits = phone.replace(/\D/g, '');
-  return digits ? `tel:+55${digits}` : '#';
+  const local = digits.replace(/^55(?=\d{10,11}$)/, '');
+  return /^\d{10,11}$/.test(local) ? `tel:+55${local}` : '#';
 }
 
 /** Rótulo capitalizado de lotação da UBS (`"baixo"` -> `"Baixo"`, `"moderado"` -> `"Moderado"`). */

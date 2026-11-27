@@ -42,6 +42,17 @@ async function bootstrap() {
     }
   }
 
+  if (!env.isMock && "serviceWorker" in navigator) {
+    const registrations = await navigator.serviceWorker.getRegistrations();
+    for (const registration of registrations) {
+      const worker = registration.active ?? registration.waiting ?? registration.installing;
+      if (worker?.scriptURL.endsWith("/mockServiceWorker.js")) {
+        await registration.unregister();
+        if (navigator.serviceWorker.controller?.scriptURL.endsWith("/mockServiceWorker.js")) { window.location.reload(); return; }
+      }
+    }
+  }
+
   root.render(
     <StrictMode>
       <App />
