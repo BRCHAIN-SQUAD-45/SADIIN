@@ -5,6 +5,7 @@ import { Icon, isIconName } from '../components/ui/Icon';
 import { EmptyState, ErrorState, ProvenanceTags, Skeleton } from '../components/ui/States';
 import { getEnv } from '../config/env';
 import { useLocationSelection } from '../features/location/useLocation';
+import { useNearbyUnits } from '../features/units/useNearbyUnits';
 import {
   useUnitAttendanceHistory,
   useUnitDetail,
@@ -36,7 +37,13 @@ export function UnitDetailPage() {
   const [hoveredDay, setHoveredDay] = useState<string | null>(null);
 
   const unitsListQuery = useUnitsList({ city_ibge: location.ibgeCode });
-  const units = unitsListQuery.data?.items ?? [];
+  // Com localização (GPS), a ordem é por distância: a 1ª unidade é a mais próxima de verdade.
+  // Sem coordenadas, vale a lista do município (unidades básicas primeiro, depois por nome).
+  const temCoordenadas = location.lat !== null && location.lng !== null;
+  const nearbyQuery = useNearbyUnits(location.lat, location.lng, 10, location.ibgeCode);
+  const proximas = temCoordenadas ? (nearbyQuery.data ?? []) : [];
+  const units = proximas.length > 0 ? proximas : (unitsListQuery.data?.items ?? []);
+  const carregandoUnidades = unitsListQuery.isLoading || (temCoordenadas && nearbyQuery.isLoading);
 
   // Em modo API real, nunca permanecer no CNES fictício 9990001 quando já há unidades reais carregadas.
   if (!isMock && cnes === '9990001' && units[0] && units[0].cnes_code !== '9990001') {
@@ -45,7 +52,7 @@ export function UnitDetailPage() {
 
   // Rota `/unidades` sem `:cnes` redireciona para a primeira unidade do município selecionado (Q3 / Card 4).
   if (!cnes) {
-    if (unitsListQuery.isLoading) {
+    if (carregandoUnidades) {
       return (
         <div className="units-page">
           <div className="unit-content section-width" style={{ paddingTop: 40 }}>

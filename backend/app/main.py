@@ -1,3 +1,7 @@
+import asyncio
+import os
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -10,7 +14,35 @@ from app.api.routers import meta, dashboard, medications, conditions, ubs, locat
 
 logger = logging.getLogger(__name__)
 
-app = FastAPI()
+async def _aquecer_caches() -> None:
+    """Carrega em segundo plano o que a primeira busca precisaria esperar (~20-30 s)."""
+    from app.integrations.anvisa import _indice, _load_records
+    from app.integrations.units import buscar_todas_unidades_municipais
+
+    cidade = os.getenv("SADIIN_DEFAULT_CITY_IBGE", "3550308")
+    resultados = await asyncio.gather(
+        _load_records(), buscar_todas_unidades_municipais(cidade), return_exceptions=True
+    )
+    if isinstance(resultados[0], list):
+        _indice(resultados[0])  # índice da busca tolerante a erros (#64)
+    for nome, resultado in zip(("ANVISA", "CNES"), resultados):
+        if isinstance(resultado, BaseException):
+            logger.warning("Aquecimento do cache %s falhou (fica para a 1ª busca): %s", nome, resultado)
+    logger.info("Caches aquecidos")
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    # Não bloqueia a subida do servidor: o aquecimento roda em segundo plano.
+    tarefa = None
+    if os.getenv("SADIIN_AQUECER_CACHES", "1") == "1":
+        tarefa = asyncio.create_task(_aquecer_caches())
+    yield
+    if tarefa and not tarefa.done():
+        tarefa.cancel()
+
+
+app = FastAPI(lifespan=lifespan)
 app.mount(
     "/assets/medications",
     StaticFiles(directory=Path(__file__).resolve().parent / "static" / "medications"),

@@ -3,6 +3,9 @@ import csv
 import hashlib
 import html
 import io
+import json
+import os
+from pathlib import Path
 import logging
 import re
 import time
@@ -18,6 +21,11 @@ ANVISA_MEDICATIONS_URL = (
 )
 ANVISA_SOURCE = "ANVISA - Consulta de medicamentos"
 ANVISA_CACHE_TTL_SECONDS = 6 * 60 * 60
+# Catálogo já processado salvo em disco: reiniciar o servidor lê o arquivo (~1 s) em vez de
+# baixar e processar o CSV da ANVISA de novo (~20 s). Vale pelo mesmo TTL do cache em memória.
+ANVISA_DISK_CACHE = Path(
+    os.getenv("SADIIN_CACHE_DIR", str(Path(__file__).resolve().parents[2] / ".cache"))
+) / "anvisa_catalogo.json"
 logger = logging.getLogger(__name__)
 _cache: tuple[float, list[dict]] | None = None
 _cache_lock = asyncio.Lock()
@@ -298,6 +306,28 @@ def _to_record(row: dict[str, str]) -> dict | None:
     }
 
 
+def _ler_cache_em_disco() -> tuple[float, list[dict]] | None:
+    """(idade em segundos, registros) se o arquivo existir e ainda estiver dentro do TTL."""
+    try:
+        idade = time.time() - ANVISA_DISK_CACHE.stat().st_mtime
+        if idade >= ANVISA_CACHE_TTL_SECONDS:
+            return None
+        records = json.loads(ANVISA_DISK_CACHE.read_text(encoding="utf-8"))
+        return (idade, records) if isinstance(records, list) and records else None
+    except (OSError, ValueError):
+        return None
+
+
+def _salvar_cache_em_disco(records: list[dict]) -> None:
+    try:
+        ANVISA_DISK_CACHE.parent.mkdir(parents=True, exist_ok=True)
+        temporario = ANVISA_DISK_CACHE.with_suffix(".tmp")
+        temporario.write_text(json.dumps(records, ensure_ascii=False), encoding="utf-8")
+        temporario.replace(ANVISA_DISK_CACHE)  # troca atômica: nunca fica arquivo pela metade
+    except OSError as exc:
+        logger.warning("Não foi possível salvar o cache em disco da ANVISA: %s", exc)
+
+
 async def _load_records() -> list[dict]:
     global _cache
     now = time.monotonic()
@@ -308,6 +338,13 @@ async def _load_records() -> list[dict]:
         now = time.monotonic()
         if _cache and _cache[0] > now:
             return _cache[1]
+
+        do_disco = _ler_cache_em_disco()
+        if do_disco is not None:
+            idade, records = do_disco
+            _cache = (time.monotonic() + ANVISA_CACHE_TTL_SECONDS - idade, records)
+            logger.info("Catálogo ANVISA lido do disco (%s grupos, %.0f min de idade)", len(records), idade / 60)
+            return records
 
         async with httpx.AsyncClient(
             timeout=httpx.Timeout(120.0, connect=20.0),
@@ -326,6 +363,7 @@ async def _load_records() -> list[dict]:
 
         records = _group_records(list(records_by_id.values()))
         _cache = (time.monotonic() + ANVISA_CACHE_TTL_SECONDS, records)
+        _salvar_cache_em_disco(records)
         logger.info("Catálogo ANVISA carregado: %s grupos de medicamentos ativos", len(records))
         return records
 

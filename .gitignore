@@ -66,3 +66,6 @@ Desktop.ini
 *.swp
 *.swo
 *~
+
+# Cache local do back-end (catálogo ANVISA processado)
+backend/.cache/

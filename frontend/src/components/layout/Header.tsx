@@ -81,6 +81,10 @@ export function Header() {
           label: 'Localização atual',
         });
         setPickerOpen(false);
+        // Na aba de unidades, reabre na unidade mais próxima da nova localização.
+        if (routeLocation.pathname.startsWith('/unidades')) {
+          navigate('/unidades', { replace: true });
+        }
       },
       () => {
         // Permissão negada: mantém o popover aberto para seleção manual (caso de borda 1.1).

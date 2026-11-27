@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import L from 'leaflet';
 import { MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet';
@@ -6,7 +6,6 @@ import 'leaflet/dist/leaflet.css';
 import { getEnv } from '../../config/env';
 import type { UnitSummary } from '../../api/types';
 import { mapUnitSummaryToPinView } from '../../api/mappers';
-import { Icon } from '../ui/Icon';
 
 interface NearbyUnitsMapProps {
   units: UnitSummary[];
@@ -15,8 +14,6 @@ interface NearbyUnitsMapProps {
   /** `false` quando o centro é a primeira UBS (cidade sem coordenadas), não o usuário. */
   showUserMarker?: boolean;
 }
-
-const PIN_POSITIONS = ['pin-main', 'pin-second', 'pin-third'] as const;
 
 function MapCenterUpdater({ lat, lng }: { lat: number; lng: number }) {
   const map = useMap();
@@ -51,7 +48,6 @@ export function NearbyUnitsMap({
   centerLng,
   showUserMarker = true,
 }: NearbyUnitsMapProps) {
-  const [activePinCnes, setActivePinCnes] = useState<string | null>(null);
   const env = getEnv();
 
   // Sem UBS retornadas, o mapa fica sem pinos: nunca exibimos unidades fictícias.
@@ -83,9 +79,6 @@ export function NearbyUnitsMap({
               key={pin.cnes}
               position={[pin.lat, pin.lng]}
               icon={buildUnitDivIcon(pin.kind, idx === 0)}
-              eventHandlers={{
-                click: () => setActivePinCnes(pin.cnes),
-              }}
             >
               <Popup>
                 <div className="map-popup-card">
@@ -103,40 +96,9 @@ export function NearbyUnitsMap({
         </MapContainer>
       </div>
 
-      {/* Camada de pinos interativos por teclado/leitor de tela (preserva visual e acessibilidade do protótipo) */}
-      {pinViews.slice(0, 3).map((u, idx) => {
-        const pinClass = PIN_POSITIONS[idx] ?? 'pin-third';
-        const isActive = activePinCnes === u.cnes;
-        return (
-          <span
-            key={u.cnes}
-            role="button"
-            tabIndex={0}
-            aria-label={u.name}
-            className={`map-pin ${pinClass}`}
-            onClick={() => setActivePinCnes(u.cnes)}
-            onFocus={() => setActivePinCnes(u.cnes)}
-            onBlur={() => setActivePinCnes(null)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                setActivePinCnes(isActive ? null : u.cnes);
-              }
-            }}
-          >
-            <Icon name="hospital" size={idx === 0 ? 21 : 17} />
-            {isActive && <span className="pin-tooltip">{u.name}</span>}
-          </span>
-        );
-      })}
-
-      {showUserMarker && (
-        <span className="you">
-          <i />
-          Você está aqui
-        </span>
-      )}
-
+      {/* Os pinos e o "Você está aqui" são marcadores do próprio Leaflet (acima): acompanham o
+          arrasto/zoom e são acessíveis por teclado. A antiga camada fixa do protótipo foi removida
+          porque ficava parada sobre o mapa, duplicando os pinos. */}
       <div className="map-legend">
         <span>
           <i /> UBS

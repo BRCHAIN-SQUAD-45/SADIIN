@@ -8,8 +8,14 @@ Rodar (dentro de backend/):
     python -m pytest
 """
 
+import os
 import sys
+import tempfile
 from pathlib import Path
+
+# Testes não fazem aquecimento em rede nem leem/gravam o cache em disco real.
+os.environ.setdefault("SADIIN_AQUECER_CACHES", "0")
+os.environ.setdefault("SADIIN_CACHE_DIR", tempfile.mkdtemp(prefix="sadiin-teste-"))
 
 import pytest
 
