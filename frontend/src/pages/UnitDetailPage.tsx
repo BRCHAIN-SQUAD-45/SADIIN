@@ -1,3 +1,4 @@
+import { UnitRoutes } from '../components/map/UnitRoutes';
 import { useEffect, useId, useRef, useState } from 'react';
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { UnitAttendanceChart } from '../components/charts/UnitAttendanceChart';
@@ -14,7 +15,6 @@ import {
   useUnitStaff,
 } from '../features/units/useUnitDetail';
 import {
-  buildRouteUrl,
   buildTelHref,
   formatDisplayName,
   formatInt,
@@ -24,6 +24,11 @@ import {
   formatTodayLabel,
   formatUnitUpdatedLabel,
 } from '../utils/format';
+
+function formatUnitPhone(phone?: string) {
+  const digits = (phone ?? '').replace(/\D/g, '').replace(/^55(?=\d{10,11}$)/, '');
+  return digits.replace(/^(\d{2})(\d{4,5})(\d{4})$/, '($1) $2-$3');
+}
 
 const SERVICE_CATEGORIES = ['Todos', 'Consultas', 'Prevenção', 'Procedimentos', 'Apoio'] as const;
 
@@ -36,14 +41,47 @@ export function UnitDetailPage() {
   const [hoveredDay, setHoveredDay] = useState<string | null>(null);
 
   const unitsListQuery = useUnitsList({ city_ibge: location.ibgeCode });
-  const units = unitsListQuery.data?.items ?? [];
+  const units = (unitsListQuery.data?.items ?? []).filter(
+    (unit) => isMock || (/^\d{7}$/.test(unit.cnes_code) && unit.cnes_code !== '9990001'),
+  );
 
-  // Em modo API real, nunca permanecer no CNES fictício 9990001 quando já há unidades reais carregadas.
-  if (!isMock && cnes === '9990001' && units[0] && units[0].cnes_code !== '9990001') {
-    return <Navigate to={`/unidades/${units[0].cnes_code}`} replace />;
+  // O CNES 9990001 existe apenas nos mocks. Em API real, aguarda a lista do
+  // município selecionado e só navega quando houver uma unidade verdadeira.
+  if (!isMock && cnes === '9990001') {
+    if (unitsListQuery.isLoading) {
+      return (
+        <div className="units-page">
+          <div className="unit-content section-width" style={{ paddingTop: 40 }}>
+            <Skeleton style={{ height: 120 }} />
+          </div>
+        </div>
+      );
+    }
+    if (units[0] && units[0].cnes_code !== '9990001') {
+      return <Navigate to={`/unidades/${units[0].cnes_code}`} replace />;
+    }
+    return (
+      <div className="units-page">
+        <div className="unit-content section-width" style={{ paddingTop: 40 }}>
+          {unitsListQuery.isError ? (
+            <ErrorState
+              error={unitsListQuery.error}
+              onRetry={() => void unitsListQuery.refetch()}
+              fallbackTitle={`Não foi possível carregar as unidades de ${location.cityName} (${location.uf})`}
+            />
+          ) : (
+            <EmptyState
+              title={`Nenhuma unidade encontrada em ${location.cityName} (${location.uf})`}
+              description="Selecione outro município ou estado no menu de localização superior."
+            />
+          )}
+        </div>
+      </div>
+    );
   }
 
-  // Rota `/unidades` sem `:cnes` redireciona para a primeira unidade do município selecionado (Q3 / Card 4).
+  // Rota `/unidades` sem `:cnes` redireciona para a primeira unidade real
+  // retornada para o city_ibge selecionado. Não usa CNES fictício em modo API.
   if (!cnes) {
     if (unitsListQuery.isLoading) {
       return (
@@ -112,10 +150,16 @@ function UnitDetailContent({
   onHoverDay,
   onSelectUnit,
 }: UnitDetailContentProps) {
+  const { location } = useLocationSelection();
   const detailQuery = useUnitDetail(cnes);
   const metricsQuery = useUnitMetrics(cnes);
   const historyQuery = useUnitAttendanceHistory(cnes, 7);
-  const servicesQuery = useUnitServices(cnes, selectedServiceCategory);
+  const servicesQuery = useUnitServices(cnes);
+  const [structureOpen, setStructureOpen] = useState(false);
+  useEffect(() => {
+    setStructureOpen(false);
+    onSelectServiceCategory('Todos');
+  }, [cnes, onSelectServiceCategory]);
   const staffQuery = useUnitStaff(cnes);
   const [selectorOpen, setSelectorOpen] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(0);
@@ -127,7 +171,11 @@ function UnitDetailContent({
   const unit = detailQuery.data;
   const metrics = metricsQuery.data;
   const history = historyQuery.data;
-  const services = servicesQuery.data ?? [];
+  const allServices = servicesQuery.data ?? [];
+  const services =
+    selectedServiceCategory === 'Todos'
+      ? allServices
+      : allServices.filter((s) => s.category === selectedServiceCategory);
   const staff = staffQuery.data;
 
   // A unidade aberta sempre aparece no seletor (ela pode não estar na 1ª página da lista).
@@ -330,14 +378,19 @@ function UnitDetailContent({
               <a href={buildTelHref(unit.phone)}>
                 <Icon name="phone" size={17} /> Ligar
               </a>
-              <a
-                className="primary"
-                href={buildRouteUrl(unit.lat, unit.lng, unit.name)}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <Icon name="route" size={17} /> Como chegar
-              </a>
+              {Number.isFinite(unit.lat) && Number.isFinite(unit.lng) && (
+                <UnitRoutes
+                  unit={unit}
+                  origin={
+                    (location.label === 'Localização atual' ||
+                      location.label === 'Localização confirmada') &&
+                    location.lat !== null &&
+                    location.lng !== null
+                      ? { lat: location.lat, lng: location.lng }
+                      : undefined
+                  }
+                />
+              )}
             </div>
           </section>
         )}
@@ -496,10 +549,14 @@ function UnitDetailContent({
             <div>
               <span>SERVIÇOS DA UNIDADE</span>
               <h2>O que esta UBS oferece</h2>
-              <p>Confira os atendimentos disponíveis antes de se deslocar.</p>
+              <p>
+                Serviços especializados registrados no CNES. A lista pode não incluir todos os
+                atendimentos da unidade.
+              </p>
             </div>
             <button
               type="button"
+              disabled={buildTelHref(unit?.phone) === '#'}
               onClick={() => {
                 if (unit?.phone) {
                   window.location.href = buildTelHref(unit.phone);
@@ -526,7 +583,11 @@ function UnitDetailContent({
                   className={isActive ? 'active' : ''}
                   onClick={() => onSelectServiceCategory(cat)}
                 >
-                  {cat}
+                  {cat} (
+                  {cat === 'Todos'
+                    ? allServices.length
+                    : allServices.filter((s) => s.category === cat).length}
+                  )
                 </button>
               );
             })}
@@ -546,24 +607,40 @@ function UnitDetailContent({
             />
           ) : services.length === 0 ? (
             <EmptyState
-              title="Nenhum serviço nesta categoria"
-              description="Selecione 'Todos' para visualizar todos os serviços ativos."
+              title={
+                selectedServiceCategory === 'Todos'
+                  ? 'Nenhum serviço especializado retornado pelo CNES'
+                  : 'Nenhum serviço registrado nesta categoria'
+              }
+              description="Isso não significa que a UBS não ofereça atendimento. Confirme diretamente com a unidade."
               actionLabel="Ver todos os serviços"
               onAction={() => onSelectServiceCategory('Todos')}
             />
           ) : (
             <div className="services-grid">
               {services.map((service) => (
-                <article key={service.id}>
+                <article key={`${service.id}-${service.name}-${service.detail}`}>
                   <span>
                     <Icon name={isIconName(service.icon_key) ? service.icon_key : 'hospital'} />
                   </span>
                   <div>
                     <small>{service.category}</small>
-                    <h3>{service.name}</h3>
+                    <h3>
+                      {service.detail
+                        .normalize('NFD')
+                        .replace(/[\u0300-\u036f]/g, '')
+                        .toUpperCase()
+                        .includes('ELETROCARDIOGRAFICO')
+                        ? 'Eletrocardiograma (ECG)'
+                        : formatDisplayName(service.name)}
+                    </h3>
                     <p>{service.detail}</p>
+                    {service.detail
+                      .normalize('NFD')
+                      .replace(/[\u0300-\u036f]/g, '')
+                      .toUpperCase()
+                      .includes('ELETROCARDIOGRAFICO') && <p>{formatDisplayName(service.name)}</p>}
                   </div>
-                  <Icon name="chevron" size={17} />
                 </article>
               ))}
             </div>
@@ -600,7 +677,7 @@ function UnitDetailContent({
                 <div className="team-stats">
                   <span>
                     <strong>{formatInt(staff.professionals)}</strong>
-                    <small>profissionais</small>
+                    <small>registros profissionais SUS</small>
                   </span>
                   <span>
                     <strong>{staff.rooms !== null ? formatInt(staff.rooms) : '—'}</strong>
@@ -608,12 +685,36 @@ function UnitDetailContent({
                   </span>
                   <span>
                     <strong>{formatInt(staff.esf_teams)}</strong>
-                    <small>equipes ESF</small>
+                    <small>equipes identificadas (INE)</small>
                   </span>
                 </div>
-                <button type="button" aria-disabled="true" title="Detalhamento completo em breve">
-                  Ver estrutura completa <Icon name="arrow" size={16} />
+                <button
+                  type="button"
+                  aria-expanded={structureOpen}
+                  onClick={() => setStructureOpen((v) => !v)}
+                >
+                  {structureOpen ? 'Ocultar estrutura' : 'Ver estrutura completa'}{' '}
+                  <Icon name="arrow" size={16} />
                 </button>
+                {structureOpen && (
+                  <div style={{ padding: 17 }}>
+                    <p>
+                      Registros profissionais com atendimento SUS: {formatInt(staff.professionals)}
+                    </p>
+                    <p>
+                      Consultórios:{' '}
+                      {staff.rooms == null ? 'Não informado pelo CNES' : formatInt(staff.rooms)}
+                    </p>
+                    <p>Equipes identificadas pelo INE: {formatInt(staff.esf_teams)}</p>
+                    <p>
+                      Os registros podem incluir mais de um vínculo por profissional. A ausência de
+                      INE não comprova ausência de equipes ESF.
+                    </p>
+                    <a href="https://cnes.datasus.gov.br/" target="_blank" rel="noreferrer">
+                      Consultar ficha oficial no CNES (código {cnes})
+                    </a>
+                  </div>
+                )}
               </>
             )}
           </article>
@@ -629,7 +730,11 @@ function UnitDetailContent({
               <Icon name="phone" size={16} />
               <span>
                 <small>TELEFONE</small>
-                {unit?.phone ?? 'Não informado'}
+                {buildTelHref(unit?.phone) !== '#' ? (
+                  <a href={buildTelHref(unit?.phone)}>{formatUnitPhone(unit?.phone)}</a>
+                ) : (
+                  'Telefone não informado ou inválido'
+                )}
               </span>
             </p>
             <p>

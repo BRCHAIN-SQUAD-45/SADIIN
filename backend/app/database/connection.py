@@ -20,4 +20,4 @@ def conectar_banco():
             "A variável DATABASE_URL não foi configurada."
         )
 
-    return psycopg.connect(database_url)
+    return psycopg.connect(database_url, connect_timeout=3)

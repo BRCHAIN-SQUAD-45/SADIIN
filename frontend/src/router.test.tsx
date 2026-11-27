@@ -43,7 +43,7 @@ describe('Fase 2 — Layout global + Home idênticos ao protótipo', () => {
 
     // Perto de você + UBS mais próxima
     expect(await screen.findByText('UBS República')).toBeInTheDocument();
-    expect(screen.getByText('MAIS PRÓXIMA • 850 M')).toBeInTheDocument();
+    expect(screen.getByText(/^UNIDADE EM SÃO PAULO$/i)).toBeInTheDocument();
 
     // Notícias + Saúde em dados + Fontes
     expect(
@@ -90,7 +90,7 @@ describe('Fase 2 — Layout global + Home idênticos ao protótipo', () => {
     await user.selectOptions(citySelect, '3509502'); // Campinas
 
     expect(await screen.findByRole('button', { name: /Atual: Campinas, SP/i })).toBeInTheDocument();
-    expect(window.localStorage.getItem('brchain.location')).toContain('Campinas');
+    expect(window.localStorage.getItem('brchain.location.v5')).toContain('Campinas');
   });
 
   it('notícias do Ministério da Saúde: card grande funciona como carrossel', async () => {

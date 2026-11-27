@@ -78,6 +78,7 @@ export function Header() {
           ...location,
           lat: coords.lat,
           lng: coords.lng,
+          accuracy: coords.accuracy,
           label: 'Localização atual',
         });
         setPickerOpen(false);

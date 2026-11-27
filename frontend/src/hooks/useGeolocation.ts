@@ -5,6 +5,7 @@ export type GeoStatus = 'idle' | 'loading' | 'granted' | 'denied' | 'unavailable
 export interface GeoCoords {
   lat: number;
   lng: number;
+  accuracy: number;
 }
 
 /**
@@ -25,7 +26,11 @@ export function useGeolocation() {
     setStatus('loading');
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        const next = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        const next = {
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+          accuracy: pos.coords.accuracy,
+        };
         setCoords(next);
         setStatus('granted');
         onSuccess?.(next);
@@ -34,7 +39,7 @@ export function useGeolocation() {
         setStatus('denied');
         onDenied?.();
       },
-      { enableHighAccuracy: false, timeout: 6000, maximumAge: 5 * 60_000 },
+      { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 },
     );
   }, []);
 

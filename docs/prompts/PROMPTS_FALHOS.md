@@ -219,3 +219,25 @@ Este documento registra os casos em que prompts de desenvolvimento geraram probl
 ---
 
 > **Back-end e IA:** As falhas de prompts das camadas de Back-end e IA serão registradas pelos respectivos responsáveis em suas branches.
+
+## Falhas registradas — Issues #17 e #65 (27/11/2026)
+
+### Mapa — dados simulados e rotas inválidas
+- **Prompt:** “chat preciso arrumar isso aqui no meu código arrumei o mapa mas preciso que ele mostre a ubs mais próxima, com rota de pé, carro e ônibus e que fique o mais completo possível por favor”
+- **Problema:** unidades de São Paulo em modo mock e destino inválido no Google Maps.
+- **Correção:** modo API, coordenadas reais e links de direção com origem e destino separados.
+
+### Backend — incompatibilidade com Python 3.11
+- **Solicitação:** correção dos dados reais e da localização.
+- **Problema:** SyntaxError na linha 338 de ubs.py impediu a inicialização.
+- **Correção:** ajuste da string para Python 3.11.
+
+### Localização automática imprecisa
+- **Prompt:** “ainda não está na minha localização correta”
+- **Problema:** navegador e Google Maps indicavam a mesma posição incorreta.
+- **Correção:** marcador arrastável e confirmação manual, sem depender exclusivamente da geolocalização automática.
+
+### Indicadores de atendimento sem dados
+- **Prompt:** “agora nesse que você fez por ultimo tá tudo certinho, só preciso que carregue isso aqui ó e deixe essas informações completas, pode puxar esse dados do google ou de um lugar fácil”
+- **Problema:** indicadores indisponíveis ou zerados e gráficos vazios.
+- **Correção:** tentativa de usar dados cadastrais; posteriormente, por solicitação da usuária, restauração da página original. Não considerar os indicadores em tempo real validados.

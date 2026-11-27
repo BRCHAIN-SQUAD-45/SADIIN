@@ -1,6 +1,9 @@
+import { apiGet } from '../api/client';
+import { z } from 'zod';
 import { useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import type { SearchType } from '../api/types';
+import { nearestBasicUnit, UnitRoutes } from '../components/map/UnitRoutes';
 import { NearbyUnitsMap } from '../components/map/NearbyUnitsMap';
 import { DidYouMean } from '../components/search/DidYouMean';
 import { foiCorrigido } from '../utils/busca';
@@ -16,7 +19,6 @@ import { useNearbyUnits } from '../features/units/useNearbyUnits';
 import { useDebounce } from '../hooks/useDebounce';
 import { useGeolocation } from '../hooks/useGeolocation';
 import {
-  buildRouteUrl,
   formatClosesAt,
   formatDistanceLabel,
   formatEstablishmentsShort,
@@ -52,8 +54,43 @@ export function HomePage() {
   const [feedbackBanner, setFeedbackBanner] = useState('');
 
   const { location, selectLocation } = useLocationSelection();
-  const [placeInput, setPlaceInput] = useState(location.label);
+
   const geo = useGeolocation();
+  const [draft, setDraft] = useState<{
+    lat: number;
+    lng: number;
+    accuracy?: number;
+    label: string;
+  } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [positionError, setPositionError] = useState('');
+  const confirmPosition = async () => {
+    if (!draft) return;
+    setBusy(true);
+    setPositionError('');
+    try {
+      const city = await apiGet(
+        'GET /locations/resolve',
+        '/locations/resolve',
+        z.object({ uf: z.string(), name: z.string(), ibge_code: z.string() }),
+        { params: { lat: draft.lat, lng: draft.lng }, retries: 0 },
+      );
+      selectLocation({
+        uf: city.uf,
+        cityName: city.name,
+        ibgeCode: city.ibge_code,
+        lat: draft.lat,
+        lng: draft.lng,
+        label: 'Localização confirmada',
+        accuracy: draft.accuracy,
+      });
+      setDraft(null);
+    } catch {
+      setPositionError('Não foi possível identificar o município. Tente novamente.');
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const debouncedText = useDebounce(queryText, 300);
   const effectiveSearchTerm = submittedQuery || debouncedText;
@@ -66,7 +103,16 @@ export function HomePage() {
     cityIbge: location.ibgeCode,
     enabled: effectiveSearchTerm.trim().length >= 2,
   });
-  const nearbyQuery = useNearbyUnits(location.lat, location.lng, 10, location.ibgeCode);
+  const nearbyQuery = useNearbyUnits(
+    location.label === 'Localização atual' || location.label === 'Localização confirmada'
+      ? location.lat
+      : null,
+    location.label === 'Localização atual' || location.label === 'Localização confirmada'
+      ? location.lng
+      : null,
+    10,
+    location.ibgeCode,
+  );
   const newsQuery = useNews(location.uf, location.ibgeCode);
 
   // Carrossel: o card grande percorre destaque + demais notícias; a lista ao lado mostra as outras.
@@ -100,13 +146,8 @@ export function HomePage() {
   const handleUseMyLocation = () => {
     geo.request(
       (coords) => {
-        setPlaceInput('Localização atual');
-        selectLocation({
-          ...location,
-          lat: coords.lat,
-          lng: coords.lng,
-          label: 'Localização atual',
-        });
+        setPositionError('');
+        setDraft({ ...coords, label: 'Posição estimada pelo dispositivo' });
       },
       () => {
         // Permissão recusada: não quebra o mapa nem os painéis (caso de borda 1.1).
@@ -120,12 +161,18 @@ export function HomePage() {
     establishmentsCount != null ? formatEstablishmentsShort(establishmentsCount) : '—';
   const sourcesCountLabel = metaQuery.data ? `${metaQuery.data.sources_count} fontes` : '—';
 
-  const nearestUnit = nearbyQuery.data?.[0];
-  const mapUnits = nearbyQuery.data?.slice(0, 6) ?? [];
+  const nearestUnit = nearestBasicUnit(nearbyQuery.data ?? []);
+  const mapUnits = nearbyQuery.data ?? [];
   // Sem coordenadas da cidade (IBGE não publica), centraliza na primeira UBS retornada.
   const mapCenter =
     location.lat !== null && location.lng !== null
-      ? { lat: location.lat, lng: location.lng, isUser: true }
+      ? {
+          lat: location.lat,
+          lng: location.lng,
+          // Coordenadas padrão/da cidade não são a posição GPS do usuário.
+          isUser:
+            location.label === 'Localização atual' || location.label === 'Localização confirmada',
+        }
       : nearestUnit
         ? { lat: nearestUnit.lat, lng: nearestUnit.lng, isUser: false }
         : { lat: DEFAULT_LOCATION.lat!, lng: DEFAULT_LOCATION.lng!, isUser: false };
@@ -407,11 +454,19 @@ export function HomePage() {
             <div className="place-field">
               <Icon name="pin" size={19} />
               <input
-                value={placeInput !== location.label ? placeInput : location.label}
-                onChange={(e) => setPlaceInput(e.target.value)}
+                value={
+                  location.label === 'Localização confirmada'
+                    ? `${location.cityName}, ${location.uf} — posição confirmada`
+                    : location.label
+                }
+                readOnly
                 aria-label="Sua localização"
               />
-              <button type="button" onClick={handleUseMyLocation}>
+              <button
+                type="button"
+                onClick={handleUseMyLocation}
+                disabled={busy || geo.status === 'loading'}
+              >
                 Usar minha localização
               </button>
             </div>
@@ -423,6 +478,61 @@ export function HomePage() {
               </p>
             )}
 
+            <div className="ubs-routes location-adjustment">
+              {!draft && (
+                <button
+                  disabled={busy}
+                  onClick={() => {
+                    setPositionError('');
+                    setDraft({
+                      lat: mapCenter.lat,
+                      lng: mapCenter.lng,
+                      label: 'Ponto escolhido no mapa',
+                    });
+                  }}
+                >
+                  Ajustar posição no mapa
+                </button>
+              )}
+              {draft && (
+                <>
+                  <p>
+                    {draft.label}. Use a rodinha do mouse para aproximar ou afastar o mapa. Arraste
+                    o ponto azul até sua posição e confirme.{' '}
+                    {draft.accuracy !== undefined &&
+                      `Precisão estimada: ${Math.round(draft.accuracy)} m.`}
+                  </p>
+                  <button disabled={busy} onClick={() => void confirmPosition()}>
+                    Confirmar localização
+                  </button>{' '}
+                  <button
+                    disabled={busy}
+                    onClick={() => {
+                      setDraft(null);
+                      setPositionError('');
+                    }}
+                  >
+                    Cancelar
+                  </button>
+                </>
+              )}
+              {positionError && <p role="alert">{positionError}</p>}
+            </div>
+            {geo.status === 'loading' && <p role="status">Obtendo sua localização…</p>}
+            {mapCenter.isUser && location.accuracy !== undefined && (
+              <p role="status">
+                Precisão estimada: {Math.round(location.accuracy)} m.{' '}
+                {location.accuracy > 100
+                  ? 'A localização é aproximada; confira o ponto azul antes de iniciar a rota.'
+                  : 'Confira o ponto azul no mapa.'}
+              </p>
+            )}
+            {!mapCenter.isUser && (
+              <p>Use sua localização para identificar a UBS mais próxima de você.</p>
+            )}
+            {nearbyQuery.data?.length && !nearestUnit ? (
+              <p>Nenhuma UBS encontrada no raio consultado.</p>
+            ) : null}
             {nearbyQuery.isPending && <Skeleton style={{ height: 92, marginTop: 13 }} />}
 
             {nearbyQuery.isError && (
@@ -440,7 +550,7 @@ export function HomePage() {
               />
             )}
 
-            {nearestUnit && (
+            {nearestUnit && !draft && (
               <div className="facility">
                 <div className="facility-top">
                   <span className="facility-icon">
@@ -449,8 +559,8 @@ export function HomePage() {
                   <div>
                     <small>
                       {/* Sem distância (cidade escolhida sem GPS) não dá para afirmar "mais próxima". */}
-                      {nearestUnit.distance_m !== undefined
-                        ? `MAIS PRÓXIMA • ${formatDistanceLabel(nearestUnit.distance_m)}`
+                      {mapCenter.isUser && nearestUnit.distance_m !== undefined
+                        ? `UBS MAIS PRÓXIMA DA POSIÇÃO SELECIONADA • ${formatDistanceLabel(nearestUnit.distance_m)} em linha reta`
                         : `UNIDADE EM ${location.cityName.toUpperCase()}`}
                     </small>
                     <strong>{nearestUnit.name}</strong>
@@ -472,14 +582,8 @@ export function HomePage() {
                       <Icon name="phone" size={16} /> {nearestUnit.phone}
                     </span>
                   )}
-                  <a
-                    href={buildRouteUrl(nearestUnit.lat, nearestUnit.lng, nearestUnit.name)}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    <Icon name="route" size={16} /> Ver rota
-                  </a>
                 </div>
+                <UnitRoutes unit={nearestUnit} origin={mapCenter.isUser ? mapCenter : undefined} />
               </div>
             )}
 
@@ -487,15 +591,22 @@ export function HomePage() {
               className="all-units"
               to={nearestUnit ? `/unidades/${nearestUnit.cnes_code}` : '/unidades'}
             >
-              Ver todas as unidades próximas <Icon name="arrow" size={17} />
+              Ver detalhes da unidade <Icon name="arrow" size={17} />
             </Link>
           </div>
 
           <NearbyUnitsMap
-            units={mapUnits}
-            centerLat={mapCenter.lat}
-            centerLng={mapCenter.lng}
-            showUserMarker={mapCenter.isUser}
+            units={draft ? [] : mapUnits}
+            centerLat={draft?.lat ?? mapCenter.lat}
+            centerLng={draft?.lng ?? mapCenter.lng}
+            showUserMarker={Boolean(draft) || mapCenter.isUser}
+            editing={Boolean(draft)}
+            onPositionChange={
+              busy
+                ? undefined
+                : (lat, lng) => setDraft({ lat, lng, label: 'Ponto escolhido no mapa' })
+            }
+            accuracy={draft ? draft.accuracy : location.accuracy}
           />
         </div>
       </section>

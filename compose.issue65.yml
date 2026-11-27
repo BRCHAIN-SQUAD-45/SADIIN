@@ -1,0 +1,18 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: sadiin
+      POSTGRES_USER: sadiin
+      POSTGRES_PASSWORD: sadiin_local
+    ports:
+      - '127.0.0.1:5432:5432'
+    volumes:
+      - issue65_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U sadiin -d sadiin']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+volumes:
+  issue65_pg:

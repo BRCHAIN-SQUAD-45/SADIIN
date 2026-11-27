@@ -1,0 +1,3 @@
+# Serviços e estrutura das UBS
+
+A lista de serviços especializados é consultada uma vez por unidade e filtrada localmente. Os filtros mostram a quantidade de registros por categoria. A lista não representa necessariamente todos os serviços da atenção básica. O detalhamento apresenta os registros profissionais SUS, consultórios quando informados e equipes identificadas por INE (não necessariamente ESF). Não são adicionados dados fictícios. O telefone é validado e formatado; sem telefone válido, a confirmação de disponibilidade fica desabilitada. O mapa e o cache municipal não foram modificados.
