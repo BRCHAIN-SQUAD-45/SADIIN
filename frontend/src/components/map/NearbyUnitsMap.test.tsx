@@ -21,8 +21,15 @@ describe('Fase 5 — Mapa interativo Leaflet (US-04.1)', () => {
     expect(screen.getByText('UBS')).toBeInTheDocument();
     expect(screen.getByText('Hospital')).toBeInTheDocument();
 
-    const pinButton = screen.getByRole('button', { name: 'UBS República' });
-    await user.click(pinButton);
-    expect(screen.getAllByText('UBS República').length).toBeGreaterThanOrEqual(1);
+    // Pinos são marcadores do Leaflet (acompanham o arrasto do mapa): 1 por unidade + "Você está aqui".
+    const { container } = { container: document.body };
+    const marcadores = container.querySelectorAll('.leaflet-marker-icon');
+    expect(marcadores.length).toBe(Math.min(summaries.length, 6) + 1);
+    // A antiga camada de pinos fixos (que ficava parada sobre o mapa) não existe mais.
+    expect(container.querySelector('.map-pin')).toBeNull();
+
+    // Clicar no pino abre o popup com o nome da unidade.
+    await user.click(marcadores[1] as HTMLElement);
+    expect(await screen.findByText(summaries[0]!.name)).toBeInTheDocument();
   });
 });
