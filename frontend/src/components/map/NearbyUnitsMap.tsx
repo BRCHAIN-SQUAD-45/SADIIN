@@ -130,12 +130,7 @@ export function NearbyUnitsMap({
         );
       })}
 
-      {showUserMarker && (
-        <span className="you">
-          <i />
-          Você está aqui
-        </span>
-      )}
+      {/* Issue #76: Removido <span className="you"> duplicado - já existe no Leaflet Marker */}
 
       <div className="map-legend">
         <span>

@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import type { SearchType } from '../api/types';
+import { apiClient } from '../api/client';
 import { NearbyUnitsMap } from '../components/map/NearbyUnitsMap';
 import { DidYouMean } from '../components/search/DidYouMean';
 import { foiCorrigido } from '../utils/busca';
@@ -99,14 +100,35 @@ export function HomePage() {
 
   const handleUseMyLocation = () => {
     geo.request(
-      (coords) => {
+      async (coords) => {
         setPlaceInput('Localização atual');
-        selectLocation({
-          ...location,
-          lat: coords.lat,
-          lng: coords.lng,
-          label: 'Localização atual',
-        });
+        
+        // Issue #76: Resolver GPS → município (ibgeCode, uf, cityName)
+        try {
+          const response = await apiClient.get<{
+            ibgeCode: string;
+            uf: string;
+            cityName: string;
+          }>(`/locations/resolve?lat=${coords.lat}&lng=${coords.lng}`);
+          
+          selectLocation({
+            lat: coords.lat,
+            lng: coords.lng,
+            ibgeCode: response.data.ibgeCode,
+            uf: response.data.uf,
+            cityName: response.data.cityName,
+            label: 'Localização atual',
+          });
+        } catch (error) {
+          // Falha ao resolver: mantém coordenadas mas preserva município anterior
+          console.warn('Falha ao resolver localização:', error);
+          selectLocation({
+            ...location,
+            lat: coords.lat,
+            lng: coords.lng,
+            label: 'Localização atual',
+          });
+        }
       },
       () => {
         // Permissão recusada: não quebra o mapa nem os painéis (caso de borda 1.1).
